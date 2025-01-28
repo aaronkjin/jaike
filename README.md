@@ -10,3 +10,4 @@ An AI-powered application that generates short-form content based on lectures. B
 
 
 Andrew
+Ryan
