@@ -33,7 +33,7 @@ pip install -r requirements.txt
 4. Create a .env file in root directory and add
 
 ```bash
-pip install -r requirements.txt
+OPENAI_API_KEY=your_api_key_here
 ```
 
 5. Run Flask server
