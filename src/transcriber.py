@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from moviepy import (
@@ -10,6 +11,7 @@ from moviepy.video.io.ffmpeg_tools import (
 )
 from moviepy.tools import subprocess_call
 from openai import OpenAI
+import boto3
 
 FFMPEG_BINARY = os.getenv("FFMPEG_BINARY", "ffmpeg")
 
@@ -18,6 +20,15 @@ SYSTEM_PROMPT = """
 """
 
 app = Flask(__name__)
+
+S3_BUCKET = "videolecturefiles"
+S3_REGION = "us-west-1"  # Example: "us-east-1"
+s3_client = boto3.client(
+    "s3",
+    region_name=S3_REGION,
+    aws_access_key_id='AKIA2NK3YJBY5WPPYDMV',
+    aws_secret_access_key='V+s48rRN8kqQQQBiDioAkvzMN4f2OtEpK6zLpCv2',
+)
 
 
 def save_txt(txt, output_path):
@@ -38,7 +49,11 @@ def convert_video_to_audio(video_path=None):
 
     if video_path is None:
         return None
-
+    
+    if not os.path.exists(video_path):
+        print(f"Error: Video file not found at {video_path}")
+        return None
+    
     clips = []
 
     try:
@@ -77,11 +92,16 @@ def transcribe_audio_file(client, input_path=None, file_idx=0):
     whisper api to transcribe the audio
     """
 
+    if not os.path.exists(input_path):
+        print(f"Error: Audio file {input_path} not found.")
+        return []
+    
     response = client.audio.transcriptions.create(
         model="whisper-1",
         file=open(input_path, "rb"),
         response_format="verbose_json",
         timestamp_granularities=["segment"],
+        language="en"
     )
 
     return process_transcription(response, file_idx)
@@ -122,6 +142,9 @@ def extract_subclip(
     Takes as input a path to a video
     Saves video[start_time: end_time] as a new file
     """
+
+    os.makedirs("tmpout", exist_ok=True) 
+
     if not output_path:
         name, ext = os.path.splitext(input_path)
         t1, t2 = [int(1000 * t) for t in [start_time, end_time]]
@@ -173,17 +196,56 @@ def create_segments(input_video, segments):
 
     for segment_title, (start_time, end_time) in segments.items():
         temp_clip_name = f"{segment_title}.mp4"
-        extract_subclip(input_video, start_time, end_time, temp_clip_name)
+        extract_subclip(input_video, start_time, end_time, f"tmpout/{temp_clip_name}")
         temp_clips.append(temp_clip_name)
 
 
-def generate_videos(video_path):
+def download_from_s3(video_folder, local_path):
+
+    s3_key = f"{video_folder}/input/in.mp4"  # Dynamic path
+
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+    try:
+        print('downloading from s3')
+        s3_client.download_file(S3_BUCKET, s3_key, local_path)
+        print(f"Downloaded from S3: {s3_key} to {local_path}")
+        return local_path
+    except Exception as e:
+        print(f"Error downloading from S3: {e}")
+        return None
+
+
+def upload_folder_to_s3(local_folder, video_folder):
+
+    uploaded_files = []
+
+    for file_name in os.listdir(local_folder):
+        local_file_path = os.path.join(local_folder, file_name)
+        
+        # Ensure we're only uploading files (not directories)
+        if os.path.isfile(local_file_path):
+            s3_key = f"{video_folder}/output/{file_name}"  # S3 Destination
+            try:
+                s3_client.upload_file(local_file_path, S3_BUCKET, s3_key)
+                s3_url = f"https://{S3_BUCKET}.s3.{'us-west-1'}.amazonaws.com/{s3_key}"
+                uploaded_files.append(s3_url)
+                print(f"Uploaded {local_file_path} to {s3_url}")
+            except Exception as e:
+                print(f"Error uploading {local_file_path} to S3: {e}")
+
+    return uploaded_files
+
+def generate_videos(video_folder):
 
     client = OpenAI(
         api_key=os.environ.get("OPENAI_API_KEY"),
     )
 
-    clips = convert_video_to_audio(video_path)
+    local_video_path = f"tmp/{video_folder}.mp4"  # Temporary storage
+    download_from_s3(video_folder, local_video_path)
+
+    clips = convert_video_to_audio(local_video_path)
 
     lines = []
     for idx, clip_file in enumerate(clips):
@@ -191,12 +253,24 @@ def generate_videos(video_path):
         output = transcribe_audio_file(client, input_path=clip_file, file_idx=idx)
         lines += output
 
-    save_txt("\n".join(lines), "test_video_transcript.txt")
+    
+    os.makedirs('tmpout', exist_ok=True)
 
-    transcript = read_txt("test_video_transcript.txt")
+    transcript_path = "tmpout/test_video_transcript.txt"
+
+    save_txt("\n".join(lines), transcript_path)
+
+    transcript = read_txt(transcript_path)
     segments = select_segments(client, transcript)
 
-    create_segments(video_path, segments)
+    create_segments(local_video_path, segments)
+
+    upload_folder_to_s3("tmpout/", video_folder)
+
+    for folder in ["tmp", "tmpout"]:
+        if os.path.exists(folder):
+            shutil.rmtree(folder) 
+            print(f"Deleted {folder}/")
 
 
 @app.route("/generate_videos", methods=["POST"])
@@ -207,11 +281,11 @@ def generate_videos_endpoint():
     """
     try:
         data = request.get_json()
-        if not data or "video_path" not in data:
-            return jsonify({"error": "Missing 'video_path' in request"}), 400
+        if not data or "video_folder" not in data:
+            return jsonify({"error": "Missing 'video_folder' in request"}), 400
 
-        video_path = data["video_path"]
-        generate_videos(video_path)
+        video_folder = data["video_folder"]
+        generate_videos(video_folder)
         return jsonify({"message": "Videos generated successfully"}), 200
 
     except Exception as e:
