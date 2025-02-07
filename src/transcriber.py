@@ -3,6 +3,7 @@ import os
 import shutil
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from moviepy import (
     VideoFileClip,
 )
@@ -13,6 +14,8 @@ from moviepy.tools import subprocess_call
 from openai import OpenAI
 import boto3
 
+
+
 FFMPEG_BINARY = os.getenv("FFMPEG_BINARY", "ffmpeg")
 
 SYSTEM_PROMPT = """
@@ -20,6 +23,13 @@ SYSTEM_PROMPT = """
 """
 
 app = Flask(__name__)
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:3000"],
+        "methods": ["OPTIONS", "GET", "POST"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 S3_BUCKET = "videolecturefiles"
 S3_REGION = "us-west-1"  # Example: "us-east-1"
@@ -289,7 +299,41 @@ def generate_videos_endpoint():
         return jsonify({"message": "Videos generated successfully"}), 200
 
     except Exception as e:
+        print (f"Error processing videos: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+def list_output_videos(video_folder):
+    """List all videos in the output folder of a specific video folder"""
+    try:
+        # List objects in the specific output folder
+        response = s3_client.list_objects_v2(
+            Bucket=S3_BUCKET,
+            Prefix=f"{video_folder}/output/"
+        )
+        
+        videos = []
+        for obj in response.get('Contents', []):
+            if obj['Key'].endswith('.mp4'):
+                video_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{obj['Key']}"
+                video_name = obj['Key'].split('/')[-1].replace('.mp4', '')
+                videos.append({
+                    "name": video_name,
+                    "url": video_url
+                })
+        return videos
+    except Exception as e:
+        print(f"Error listing videos: {e}")
+        return []
+
+@app.route("/list_videos/<video_folder>", methods=["GET"])
+def list_videos_endpoint(video_folder):
+    """Endpoint to list all processed videos for a specific folder"""
+    try:
+        videos = list_output_videos(video_folder)
+        return jsonify({"videos": videos}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 if __name__ == "__main__":
