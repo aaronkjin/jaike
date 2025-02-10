@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Box, Text, SimpleGrid, VStack, AspectRatio, useColorModeValue } from '@chakra-ui/react';
+import { motion } from 'framer-motion';
+
+const MotionBox = motion(Box);
 
 const VideoPlayer = ({ videoFolder }) => {
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [error, setError] = useState(null);
+  const bgColor = useColorModeValue('gray.50', 'gray.700');
+  const cardBg = useColorModeValue('white', 'gray.800');
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -23,44 +29,59 @@ const VideoPlayer = ({ videoFolder }) => {
   }, [videoFolder]);
 
   if (!videoFolder) return null;
-  if (error) return <div className="text-red-500">{error}</div>;
+  if (error) return <Text color="red.500">{error}</Text>;
 
   return (
-    <div className="mt-4">
-      <h3 className="text-lg font-semibold mb-2">Processed Videos</h3>
+    <Box mt={8} p={4} bg={bgColor} borderRadius="xl">
+      <Text fontSize="2xl" fontWeight="bold" mb={6}>
+        Processed Videos
+      </Text>
 
-      <div className="space-y-4">
-        {/* Video Selection */}
-        <div>
-          <select
-            className="w-full p-2 border rounded"
-            onChange={(e) => setSelectedVideo(videos.find(v => v.name === e.target.value))}
-            value={selectedVideo?.name || ''}
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4} mb={6}>
+        {videos.map((video) => (
+          <MotionBox
+            key={video.name}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setSelectedVideo(video)}
+            bg={cardBg}
+            p={4}
+            borderRadius="lg"
+            boxShadow="sm"
+            cursor="pointer"
+            border="2px solid"
+            borderColor={selectedVideo?.name === video.name ? 'blue.500' : 'transparent'}
+            transition="all 0.2s"
           >
-            <option value="">Select a video</option>
-            {videos.map((video) => (
-              <option key={video.name} value={video.name}>
+            <VStack spacing={2} align="start">
+              <Text fontWeight="medium" noOfLines={2}>
                 {video.name}
-              </option>
-            ))}
-          </select>
-        </div>
+              </Text>
+            </VStack>
+          </MotionBox>
+        ))}
+      </SimpleGrid>
 
-        {/* Video Player */}
-        {selectedVideo && (
-          <div className="video-container" style={{ marginTop: '2rem' }}>
+      {selectedVideo && (
+        <MotionBox
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          mx="auto"
+          maxW="4xl"
+        >
+          <AspectRatio ratio={16 / 9} w="full" borderRadius="xl" overflow="hidden" boxShadow="lg">
             <video
-              className="w-full rounded shadow-lg"
-              style={{ maxWidth: '500px', margin: '0 auto', display: 'block' }}
               controls
               src={selectedVideo.url}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             >
               Your browser does not support the video tag.
             </video>
-          </div>
-        )}
-      </div>
-    </div>
+          </AspectRatio>
+        </MotionBox>
+      )}
+    </Box>
   );
 };
 

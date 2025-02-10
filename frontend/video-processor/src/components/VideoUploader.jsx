@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import AWS from 'aws-sdk';
 import VideoPlayer from './VideoPlayer';
+import toast, { Toaster } from 'react-hot-toast';
+import { Heading, Button, Input, Box, Container, VStack, useColorModeValue } from '@chakra-ui/react';
 
 const VideoUploader = () => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [status, setStatus] = useState('');
   const [processedFolder, setProcessedFolder] = useState(null);
+  const bgColor = useColorModeValue('gray.50', 'gray.700');
 
-  // AWS S3 configuration - replace with your actual values
+  // AWS S3 configuration
   const s3Config = {
     bucketName: 'videolecturefiles',
     region: 'us-west-1',
@@ -19,7 +21,6 @@ const VideoUploader = () => {
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
-    setStatus('');
   };
 
   const uploadToS3 = async () => {
@@ -60,67 +61,96 @@ const VideoUploader = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setUploading(true);
-    setStatus('Uploading video...');
 
     try {
       const folderName = await uploadToS3();
-      setStatus('Processing video...');
-
+      
       // Check if processed videos already exist for this folder
       try {
         const response = await axios.get(`http://localhost:5001/list_videos/${folderName}`);
         if (response.data.videos && response.data.videos.length > 0) {
-          // Videos already exist, skip processing
-          setStatus('Videos already processed!');
+          toast.success('Videos already processed!');
           setProcessedFolder(folderName);
           return;
         }
       } catch (error) {
-        // If error occurs during check, continue with normal processing
         console.log('No existing videos found, proceeding with processing');
       }
 
-      // If no videos exist, proceed with processing
+      toast('Processing video...');
       await axios.post('http://localhost:5001/generate_videos', {
         video_folder: folderName
       });
 
-      setStatus('Video processed successfully!');
+      toast.success('Video processed successfully!');
       setProcessedFolder(folderName);
     } catch (error) {
       console.error('Error:', error);
-      setStatus(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="video-uploader">
-      <h2>Jaike</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <input
-            type="file"
-            accept="video/*"
-            onChange={handleFileChange}
-            disabled={uploading}
-          />
-        </div>
-        <button type="submit" disabled={!file || uploading}>
-          {uploading ? 'Processing...' : 'Upload and Process'}
-        </button>
-        {status && (
-          <div className={status.includes('Error') ? 'error' : 'success'}>
-            {status}
-          </div>
-        )}
-      </form>
+    <Container maxW="container.xl" py={8}>
+      <VStack spacing={8} align="stretch">
+        <Box bg={bgColor} p={8} borderRadius="xl" boxShadow="sm">
+          <Toaster position="top-center" />
+          <Heading as="h1" size="xl" mb={8} textAlign="center">Jaike</Heading>
+          <form onSubmit={handleSubmit}>
+            <VStack spacing={6}>
+              <Box w="full">
+                <Input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileChange}
+                  disabled={uploading}
+                  p={2}
+                  height="48px"
+                  fontSize="md"
+                  border="2px dashed"
+                  borderColor="gray.300"
+                  _hover={{
+                    borderColor: 'blue.500'
+                  }}
+                  sx={{
+                    '::file-selector-button': {
+                      height: '100%',
+                      padding: '0 20px',
+                      background: 'transparent',
+                      border: 'none',
+                      fontWeight: 'medium',
+                      color: 'blue.500',
+                      cursor: 'pointer'
+                    }
+                  }}
+                />
+              </Box>
+              <Button
+                type="submit"
+                disabled={!file || uploading}
+                colorScheme="blue"
+                size="lg"
+                width="full"
+                height="48px"
+                _hover={{
+                  transform: 'translateY(-2px)',
+                  boxShadow: 'md'
+                }}
+                transition="all 0.2s"
+              >
+                {uploading ? 'Processing...' : 'Upload and Process'}
+              </Button>
+            </VStack>
+          </form>
+        </Box>
 
-      {processedFolder && (
-        <VideoPlayer videoFolder={processedFolder} />
-      )}
-    </div>
+        {processedFolder && (
+          <VideoPlayer videoFolder={processedFolder} />
+        )}
+      </VStack>
+    </Container>
   );
 };
 
