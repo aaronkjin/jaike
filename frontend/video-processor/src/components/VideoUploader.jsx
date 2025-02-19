@@ -3,13 +3,24 @@ import axios from 'axios';
 import AWS from 'aws-sdk';
 import VideoPlayer from './VideoPlayer';
 import toast, { Toaster } from 'react-hot-toast';
-import { Heading, Button, Input, Box, Container, VStack, useColorModeValue } from '@chakra-ui/react';
+import {
+  Heading,
+  Button,
+  Input,
+  Box,
+  Container,
+  VStack,
+  useColorModeValue,
+  Flex
+} from '@chakra-ui/react';
+import { useAuth } from '../context/AuthContext';
 
 const VideoUploader = () => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [processedFolder, setProcessedFolder] = useState(null);
   const bgColor = useColorModeValue('gray.50', 'gray.700');
+  const { logout } = useAuth();
 
   // AWS S3 configuration
   const s3Config = {
@@ -64,7 +75,7 @@ const VideoUploader = () => {
 
     try {
       const folderName = await uploadToS3();
-      
+
       // Check if processed videos already exist for this folder
       try {
         const response = await axios.get(`http://localhost:5001/list_videos/${folderName}`);
@@ -95,9 +106,23 @@ const VideoUploader = () => {
   return (
     <Container maxW="container.xl" py={8}>
       <VStack spacing={8} align="stretch">
+        <Flex justify="space-between" align="center">
+          <Heading as="h1" size="xl" textAlign="center">Jaike</Heading>
+          <Button
+            onClick={logout}
+            colorScheme="gray"
+            size="sm"
+            _hover={{
+              transform: 'translateY(-2px)',
+              boxShadow: 'md'
+            }}
+          >
+            Logout
+          </Button>
+        </Flex>
+
         <Box bg={bgColor} p={8} borderRadius="xl" boxShadow="sm">
           <Toaster position="top-center" />
-          <Heading as="h1" size="xl" mb={8} textAlign="center">Jaike</Heading>
           <form onSubmit={handleSubmit}>
             <VStack spacing={6}>
               <Box w="full">

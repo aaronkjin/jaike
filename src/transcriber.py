@@ -2,7 +2,7 @@ import json
 import os
 import shutil
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect, session
 from flask_cors import CORS
 from moviepy import (
     VideoFileClip,
@@ -13,6 +13,7 @@ from moviepy.video.io.ffmpeg_tools import (
 from moviepy.tools import subprocess_call
 from openai import OpenAI
 import boto3
+from authlib.integrations.flask_client import OAuth
 
 
 
@@ -23,13 +24,22 @@ SYSTEM_PROMPT = """
 """
 
 app = Flask(__name__)
-CORS(app, resources={
-    r"/*": {
-        "origins": ["http://localhost:3000"],
-        "methods": ["OPTIONS", "GET", "POST"],
-        "allow_headers": ["Content-Type"]
-    }
-})
+
+#needs a secret key to encrypt session cookies
+app.secret_key = 'secret-flask-server-key'
+
+# Update CORS configuration
+CORS(app,
+    origins="http://localhost:3000",  # Set as string instead of in resources
+    supports_credentials=True,
+    expose_headers=["Set-Cookie"],
+    allow_headers=["Content-Type"]
+)
+
+# Add this line after CORS configuration
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 S3_BUCKET = "videolecturefiles"
 S3_REGION = "us-west-1"  # Example: "us-east-1"
@@ -38,6 +48,21 @@ s3_client = boto3.client(
     region_name=S3_REGION,
     aws_access_key_id='AKIA2NK3YJBY5WPPYDMV',
     aws_secret_access_key='V+s48rRN8kqQQQBiDioAkvzMN4f2OtEpK6zLpCv2',
+)
+
+# Add these near the top of your file
+oauth = OAuth(app)
+
+# Configure Google OAuth with additional settings
+oauth.register(
+    name='google',
+    client_id='528134535091-gbucq1bhg751snvk7187ml9roc76cimh.apps.googleusercontent.com',
+    client_secret='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',
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={
+        'scope': 'openid email profile',
+        'prompt': 'select_account'
+    }
 )
 
 
@@ -333,6 +358,36 @@ def list_videos_endpoint(video_folder):
         return jsonify({"videos": videos}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# Add these new routes
+@app.route('/auth/google')
+def google_auth():
+    return oauth.google.authorize_redirect(
+        redirect_uri='http://localhost:5001/auth/google/callback'
+    )
+
+@app.route('/auth/google/callback')
+def google_auth_callback():
+    try:
+        token = oauth.google.authorize_access_token()
+        userinfo = token.get('userinfo')
+        if userinfo:
+            session['user'] = userinfo
+            print(session.get('user'))
+            return redirect('http://localhost:3000/upload')
+        return 'Failed to get user info', 400
+    except Exception as e:
+        print(f"Error in callback: {str(e)}")
+        return str(e), 400
+
+@app.route('/auth/user')
+def get_user():
+    return jsonify(session.get('user'))
+
+@app.route('/auth/logout')
+def logout():
+    session.pop('user', None)
+    return jsonify({"message": "Logged out successfully"}), 200
 
 
 
