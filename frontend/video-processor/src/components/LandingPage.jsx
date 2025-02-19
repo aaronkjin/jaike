@@ -23,7 +23,7 @@ const blink = keyframes`
 const LandingPage = () => {
   const navigate = useNavigate();
   const bgColor = useColorModeValue('white', 'gray.800');
-  const buttonBgColor = useColorModeValue('blackAlpha.900', 'gray.700');
+  const buttonBgColor = useColorModeValue('blackAlpha.800', 'gray.700');
   const textColor = useColorModeValue('gray.600', 'gray.300');
   
   const [currentText, setCurrentText] = useState('');
@@ -106,7 +106,7 @@ const LandingPage = () => {
             _hover={{
               transform: 'translateY(-2px)',
               boxShadow: 'lg',
-              bg: 'blackAlpha.800'
+              bg: 'blackAlpha.700'
             }}
             _active={{
               transform: 'scale(0.98)'
