@@ -94,7 +94,7 @@ const LandingPage = () => {
           </Box>
         </Fade>
 
-        <Fade in={true} transition={{ enter: { duration: 0.5, delay: 1.5 } }}>
+        <Fade in={true} transition={{ enter: { duration: 0.5, delay: 3.0 } }}>
           <Button
             size="lg"
             px={8}
