@@ -54,19 +54,19 @@ const TextCarousel = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [phraseIndex, setPhraseIndex] = useState(0);
   const textColor = useColorModeValue('gray.500', 'gray.400');
-  
+
   useEffect(() => {
-    const typingSpeed = 80; 
+    const typingSpeed = 80;
     const deletingSpeed = 40;
     const pauseTime = 2500;
 
     const currentPhrase = carouselTexts[phraseIndex];
-    
+
     if (!isDeleting && text === currentPhrase) {
       setTimeout(() => setIsDeleting(true), pauseTime);
       return;
     }
-    
+
     if (isDeleting && text === '') {
       setIsDeleting(false);
       setPhraseIndex((prev) => (prev + 1) % carouselTexts.length);
@@ -117,8 +117,6 @@ const VideoUploader = () => {
   const bgColor = useColorModeValue('gray.50', 'gray.700');
   const { user, logout } = useAuth();
   const buttonBgColor = useColorModeValue('blackAlpha.800', 'gray.700');
-  const menuBgColor = useColorModeValue('white', 'gray.800');
-  const menuBorderColor = useColorModeValue('gray.200', 'gray.600');
 
   // AWS S3 configuration
   const s3Config = {
@@ -135,13 +133,14 @@ const VideoUploader = () => {
   const uploadToS3 = async () => {
     if (!file) return null;
 
-    // Create a consistent folder name using file metadata
+    // Create a consistent folder name using file metadata and user email
     const fileDate = new Date(file.lastModified);
     const timestamp = fileDate.getTime();
     const safeName = file.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-    const folderName = `${safeName}_${timestamp}`; // Combines filename and creation time
+    const safeEmail = user.email.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const folderName = `${safeEmail}/${safeName}_${timestamp}`; // Add user email to path
 
-    const fileName = 'in.mp4'; // Fixed filename as expected by backend
+    const fileName = 'in.mp4';
     const s3Key = `${folderName}/input/${fileName}`;
 
     // Create S3 instance
@@ -176,7 +175,9 @@ const VideoUploader = () => {
 
       // Check if processed videos already exist for this folder
       try {
-        const response = await axios.get(`http://localhost:5001/list_videos/${folderName}`);
+        const response = await axios.get(`http://localhost:5001/list_videos/${folderName}`, {
+          withCredentials: true
+        });
         if (response.data.videos && response.data.videos.length > 0) {
           toast.success('Videos already processed!');
           setProcessedFolder(folderName);
@@ -189,6 +190,8 @@ const VideoUploader = () => {
       toast('Processing video...');
       await axios.post('http://localhost:5001/generate_videos', {
         video_folder: folderName
+      }, {
+        withCredentials: true
       });
 
       toast.success('Video processed successfully!');
@@ -205,17 +208,17 @@ const VideoUploader = () => {
     <Box position="relative" minH="100vh">
       <Flex position="absolute" right="6" top="6" zIndex="10">
         <Menu>
-          <MenuButton 
-            as={Button} 
-            rounded="full" 
-            p={0} 
+          <MenuButton
+            as={Button}
+            rounded="full"
+            p={0}
             minW="auto"
-            bg="transparent" 
+            bg="transparent"
             _hover={{ bg: 'transparent' }}
             _active={{ bg: 'transparent' }}
             _focus={{ bg: 'transparent' }}
           >
-            <Avatar 
+            <Avatar
               size="sm"
               name={user?.email?.[0] || 'U'}
               src={user?.picture}
@@ -224,7 +227,7 @@ const VideoUploader = () => {
               transition="all 0.2s cubic-bezier(.08,.52,.52,1)"
             />
           </MenuButton>
-          <MenuList 
+          <MenuList
             bg={useColorModeValue('gray.100', 'gray.700')}
             borderColor={useColorModeValue('gray.200', 'gray.600')}
             boxShadow="xl"
@@ -233,10 +236,10 @@ const VideoUploader = () => {
             py={1}
             zIndex="10"
           >
-            <MenuItem 
+            <MenuItem
               onClick={logout}
               bg="transparent"
-              _hover={{ 
+              _hover={{
                 bg: useColorModeValue('gray.200', 'gray.600'),
                 borderRadius: 'md'
               }}

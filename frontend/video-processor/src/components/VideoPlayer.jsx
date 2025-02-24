@@ -15,7 +15,9 @@ const VideoPlayer = ({ videoFolder }) => {
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const response = await axios.get(`http://localhost:5001/list_videos/${videoFolder}`);
+        const response = await axios.get(`http://localhost:5001/list_videos/${videoFolder}`, {
+          withCredentials: true
+        });
         setVideos(response.data.videos);
       } catch (error) {
         setError('Failed to fetch videos');

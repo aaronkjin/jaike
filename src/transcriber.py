@@ -28,18 +28,22 @@ app = Flask(__name__)
 #needs a secret key to encrypt session cookies
 app.secret_key = 'secret-flask-server-key'
 
-# Update CORS configuration
+# Update CORS and session configuration
 CORS(app,
-    origins="http://localhost:3000",  # Set as string instead of in resources
+    origins="http://localhost:3000",
     supports_credentials=True,
     expose_headers=["Set-Cookie"],
     allow_headers=["Content-Type"]
 )
 
-# Add this line after CORS configuration
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True
+# Configure session
+app.config.update(
+    SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_DOMAIN=None,  # Allow cookies to be set for localhost
+    PERMANENT_SESSION_LIFETIME=timedelta(days=7)
+)
 
 S3_BUCKET = "videolecturefiles"
 S3_REGION = "us-west-1"  # Example: "us-east-1"
@@ -315,16 +319,23 @@ def generate_videos_endpoint():
     Calls the generate_videos function using this path.
     """
     try:
+        # Check if user is authenticated
+        user = session.get('user')
+        print(user)
+        if not user:
+            return jsonify({"error": "Not authenticated"}), 401
+
         data = request.get_json()
         if not data or "video_folder" not in data:
             return jsonify({"error": "Missing 'video_folder' in request"}), 400
 
         video_folder = data["video_folder"]
+
         generate_videos(video_folder)
         return jsonify({"message": "Videos generated successfully"}), 200
 
     except Exception as e:
-        print (f"Error processing videos: {str(e)}")
+        print(f"Error processing videos: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 def list_output_videos(video_folder):
@@ -340,6 +351,7 @@ def list_output_videos(video_folder):
         for obj in response.get('Contents', []):
             if obj['Key'].endswith('.mp4'):
                 video_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{obj['Key']}"
+                # Extract just the video name without the user's email path
                 video_name = obj['Key'].split('/')[-1].replace('.mp4', '')
                 videos.append({
                     "name": video_name,
@@ -350,10 +362,15 @@ def list_output_videos(video_folder):
         print(f"Error listing videos: {e}")
         return []
 
-@app.route("/list_videos/<video_folder>", methods=["GET"])
+@app.route("/list_videos/<path:video_folder>", methods=["GET"])
 def list_videos_endpoint(video_folder):
     """Endpoint to list all processed videos for a specific folder"""
     try:
+        # Check if user is authenticated
+        user = session.get('user')
+        if not user:
+            return jsonify({"error": "Not authenticated"}), 401
+
         videos = list_output_videos(video_folder)
         return jsonify({"videos": videos}), 200
     except Exception as e:
@@ -372,8 +389,9 @@ def google_auth_callback():
         token = oauth.google.authorize_access_token()
         userinfo = token.get('userinfo')
         if userinfo:
+            session.permanent = True  # Make the session permanent
             session['user'] = userinfo
-            print(session.get('user'))
+            print("Setting user in session:", userinfo)
             return redirect('http://localhost:3000/upload')
         return 'Failed to get user info', 400
     except Exception as e:
@@ -382,7 +400,10 @@ def google_auth_callback():
 
 @app.route('/auth/user')
 def get_user():
-    return jsonify(session.get('user'))
+    print("Current session:", dict(session))
+    user = session.get('user')
+    print("Current user:", user)
+    return jsonify(user)
 
 @app.route('/auth/logout')
 def logout():
