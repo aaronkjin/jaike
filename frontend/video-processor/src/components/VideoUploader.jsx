@@ -25,11 +25,12 @@ import {
   Divider,
   AspectRatio,
   Progress,
-  Spinner
+  Spinner,
+  useColorMode
 } from '@chakra-ui/react';
 import { useAuth } from '../context/AuthContext';
 import { keyframes } from '@emotion/react';
-import { HamburgerIcon } from '@chakra-ui/icons';
+import { HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 
 const pulseGlow = keyframes`
   0% {
@@ -184,6 +185,7 @@ const VideoUploader = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentView, setCurrentView] = useState('home');
   
+  const { colorMode, toggleColorMode } = useColorMode();
   const mainBgColor = useColorModeValue('gray.50', 'gray.700');
   const sidebarBgColor = useColorModeValue('gray.100', 'gray.800');
   const { user, logout } = useAuth();
@@ -319,13 +321,14 @@ const VideoUploader = () => {
   // Home view - Upload and Process
   const renderHomeView = () => {
     return (
-      <VStack spacing={8} align="center" maxW="1200px" mx="auto" mt={8}>
+      <VStack spacing={8} align="center" maxW="1200px" mx="auto" mt="2vh" justifyContent="center" minH="70vh">
         <Heading
           as="h1"
           size="2xl"
           color={headingColor}
           letterSpacing="tight"
           textAlign="center"
+          mb={-4} 
         >
           Jaike
         </Heading>
@@ -339,6 +342,7 @@ const VideoUploader = () => {
             borderRadius="xl" 
             boxShadow="sm" 
             w="full"
+            mt={-4} 
           >
             <TextCarousel />
             <form onSubmit={handleSubmit}>
@@ -450,32 +454,46 @@ const VideoUploader = () => {
             )}
           </Box>
           
-          <Menu>
-            <MenuButton
-              as={Button}
-              rounded="full"
-              p={0}
-              minW="auto"
-              bg="transparent"
-              _hover={{ bg: 'transparent' }}
-              _active={{ bg: 'transparent' }}
-              _focus={{ bg: 'transparent' }}
-            >
-              <Avatar
-                size="sm"
-                name={user?.email?.[0] || 'U'}
-                src={user?.picture}
-                bg={buttonBgColor}
-                color="white"
-                transition="all 0.2s cubic-bezier(.08,.52,.52,1)"
-              />
-            </MenuButton>
-            <MenuList>
-              <MenuItem onClick={logout}>
-                <Text fontWeight="medium">Log Out</Text>
-              </MenuItem>
-            </MenuList>
-          </Menu>
+          <Flex align="center">
+            {/* Dark Mode Toggle */}
+            <IconButton
+              aria-label="Toggle color mode"
+              icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
+              variant="ghost"
+              color={iconColor}
+              onClick={toggleColorMode}
+              size="md"
+              mr={2}
+              _hover={{ bg: 'rgba(0,0,0,0.05)' }}
+            />
+            
+            <Menu>
+              <MenuButton
+                as={Button}
+                rounded="full"
+                p={0}
+                minW="auto"
+                bg="transparent"
+                _hover={{ bg: 'transparent' }}
+                _active={{ bg: 'transparent' }}
+                _focus={{ bg: 'transparent' }}
+              >
+                <Avatar
+                  size="sm"
+                  name={user?.email?.[0] || 'U'}
+                  src={user?.picture}
+                  bg={buttonBgColor}
+                  color="white"
+                  transition="all 0.2s cubic-bezier(.08,.52,.52,1)"
+                />
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={logout}>
+                  <Text fontWeight="medium">Log Out</Text>
+                </MenuItem>
+              </MenuList>
+            </Menu>
+          </Flex>
         </Flex>
 
         <Container 

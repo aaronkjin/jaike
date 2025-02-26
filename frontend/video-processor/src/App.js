@@ -1,12 +1,44 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import VideoUploader from "./components/VideoUploader";
 import LandingPage from "./components/LandingPage";
-import { ChakraProvider } from "@chakra-ui/react";
+import { ChakraProvider, extendTheme, ColorModeScript } from "@chakra-ui/react";
 import "./components/VideoUploader.css";
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
-// Create a protected route component
+const theme = extendTheme({
+  config: {
+    initialColorMode: "light",
+    useSystemColorMode: false,
+  },
+  styles: {
+    global: (props) => ({
+      body: {
+        bg: props.colorMode === "dark" ? "gray.700" : "gray.50",
+      },
+    }),
+  },
+  colors: {
+    brand: {
+      50: "#f7f7f7",
+      100: "#dedede",
+      200: "#cccccc",
+      300: "#bbbbbb",
+      400: "#aaaaaa",
+      500: "#999999",
+      600: "#888888",
+      700: "#777777",
+      800: "#666666",
+      900: "#555555",
+    },
+  },
+});
+
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
@@ -21,7 +53,6 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Create a public route component that redirects if authenticated
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
@@ -61,13 +92,16 @@ function AppRoutes() {
 
 function App() {
   return (
-    <ChakraProvider>
-      <Router>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </Router>
-    </ChakraProvider>
+    <>
+      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+      <ChakraProvider theme={theme}>
+        <Router>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </Router>
+      </ChakraProvider>
+    </>
   );
 }
 

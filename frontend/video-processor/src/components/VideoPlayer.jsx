@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Box, Text, SimpleGrid, VStack, AspectRatio, useColorModeValue } from '@chakra-ui/react';
+import { Box, Text, SimpleGrid, VStack, AspectRatio, useColorModeValue, useColorMode } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
 
 const MotionBox = motion(Box);
@@ -39,10 +39,15 @@ const VideoPlayer = ({ videoFolder }) => {
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [error, setError] = useState(null);
+  const { colorMode } = useColorMode();
+  
+  // Updated color values for better consistency
   const bgColor = useColorModeValue('gray.50', 'gray.700');
   const cardBg = useColorModeValue('white', 'gray.800');
   const selectedBorderColor = useColorModeValue('blackAlpha.800', 'gray.500');
-  const cardHoverColor = useColorModeValue('gray.100', 'gray.700');
+  const cardHoverColor = useColorModeValue('gray.100', 'gray.600');
+  const textColor = useColorModeValue('gray.800', 'gray.100');
+  const errorColor = useColorModeValue('red.500', 'red.300');
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -82,7 +87,7 @@ const VideoPlayer = ({ videoFolder }) => {
   }, [videoFolder, selectedVideo]);
 
   if (!videoFolder) return null;
-  if (error) return <Text color="red.500">{error}</Text>;
+  if (error) return <Text color={errorColor}>{error}</Text>;
 
   return (
     <Box mt={8} p={4} bg={bgColor} borderRadius="xl">
@@ -106,7 +111,7 @@ const VideoPlayer = ({ videoFolder }) => {
             }}
           >
             <VStack spacing={2} align="start">
-              <Text fontWeight="medium" noOfLines={2}>
+              <Text fontWeight="medium" noOfLines={2} color={textColor}>
                 {video.name}
               </Text>
             </VStack>
@@ -126,7 +131,12 @@ const VideoPlayer = ({ videoFolder }) => {
             <video
               controls
               src={selectedVideo.url}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'cover',
+                backgroundColor: colorMode === 'dark' ? '#1A202C' : 'white' 
+              }}
             >
               Your browser does not support the video tag.
             </video>

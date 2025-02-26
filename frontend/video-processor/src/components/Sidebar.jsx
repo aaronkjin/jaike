@@ -10,7 +10,8 @@ import {
   List,
   ListItem,
   IconButton,
-  Divider
+  Divider,
+  useColorMode
 } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
 import { HamburgerIcon } from '@chakra-ui/icons';
@@ -23,12 +24,13 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
   const [previousVideos, setPreviousVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { colorMode } = useColorMode();
   
   const mainBgColor = useColorModeValue('#f7f7f7', '#212121');
-  const sidebarBgColor = useColorModeValue('#dedede', '#333333'); 
+  const sidebarBgColor = useColorModeValue('#dedede', '#1A202C');
   const textColor = useColorModeValue('#222222', '#e0e0e0');
-  const hoverBgColor = useColorModeValue('#cccccc', '#444444');
-  const borderColor = useColorModeValue('#cccccc', '#444444');
+  const hoverBgColor = useColorModeValue('#cccccc', '#4A5568');
+  const borderColor = useColorModeValue('#cccccc', '#2D3748');
   const secondaryTextColor = useColorModeValue('#444444', '#bbbbbb');
   const headingColor = useColorModeValue('#000000', '#ffffff');
   const iconColor = useColorModeValue('#333333', '#dddddd');
