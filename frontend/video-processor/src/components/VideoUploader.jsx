@@ -65,8 +65,8 @@ const TextCarousel = () => {
   const textColor = useColorModeValue('gray.500', 'gray.400');
 
   useEffect(() => {
-    const typingSpeed = 80;
-    const deletingSpeed = 40;
+    const typingSpeed = 50;
+    const deletingSpeed = 30;
     const pauseTime = 2500;
 
     const currentPhrase = carouselTexts[phraseIndex];
