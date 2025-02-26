@@ -5,12 +5,44 @@ import { motion } from 'framer-motion';
 
 const MotionBox = motion(Box);
 
+// Function to determine the chronological order priority of a video
+const getVideoPriority = (videoName) => {
+  const nameLower = videoName.toLowerCase();
+  
+  // Priority 1: Intro/Introduction videos should come first
+  if (nameLower.includes('intro') || nameLower.includes('introduction')) {
+    return 1;
+  }
+  
+  // Priority 2: Overview or summary videos
+  if (nameLower.includes('overview') || nameLower.includes('summary')) {
+    return 2;
+  }
+  
+  // Priority 3: Numbered videos (extract the number for sorting)
+  const numberMatch = nameLower.match(/part\s*(\d+)|section\s*(\d+)|chapter\s*(\d+)|(\d+)/);
+  if (numberMatch) {
+    const number = parseInt(numberMatch[1] || numberMatch[2] || numberMatch[3] || numberMatch[4]);
+    return 100 + number; // Adding 100 to ensure it comes after non-numbered priorities
+  }
+  
+  // Priority 4: Conclusion/Summary videos should come last
+  if (nameLower.includes('conclusion') || nameLower.includes('final') || nameLower.includes('end')) {
+    return 1000;
+  }
+  
+  // Default priority for other videos
+  return 500;
+};
+
 const VideoPlayer = ({ videoFolder }) => {
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [error, setError] = useState(null);
   const bgColor = useColorModeValue('gray.50', 'gray.700');
   const cardBg = useColorModeValue('white', 'gray.800');
+  const selectedBorderColor = useColorModeValue('blackAlpha.800', 'gray.500');
+  const cardHoverColor = useColorModeValue('gray.100', 'gray.700');
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -18,7 +50,26 @@ const VideoPlayer = ({ videoFolder }) => {
         const response = await axios.get(`http://localhost:5001/list_videos/${videoFolder}`, {
           withCredentials: true
         });
-        setVideos(response.data.videos);
+        
+        // Sort videos in chronological order
+        const sortedVideos = [...response.data.videos].sort((a, b) => {
+          const priorityA = getVideoPriority(a.name);
+          const priorityB = getVideoPriority(b.name);
+          
+          if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+          }
+          
+          // If same priority, sort alphabetically
+          return a.name.localeCompare(b.name);
+        });
+        
+        setVideos(sortedVideos);
+        
+        // Auto-select the first video if none is selected
+        if (sortedVideos.length > 0 && !selectedVideo) {
+          setSelectedVideo(sortedVideos[0]);
+        }
       } catch (error) {
         setError('Failed to fetch videos');
         console.error('Error fetching videos:', error);
@@ -28,17 +79,13 @@ const VideoPlayer = ({ videoFolder }) => {
     if (videoFolder) {
       fetchVideos();
     }
-  }, [videoFolder]);
+  }, [videoFolder, selectedVideo]);
 
   if (!videoFolder) return null;
   if (error) return <Text color="red.500">{error}</Text>;
 
   return (
     <Box mt={8} p={4} bg={bgColor} borderRadius="xl">
-      <Text fontSize="2xl" fontWeight="bold" mb={6}>
-        Processed Videos
-      </Text>
-
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4} mb={6}>
         {videos.map((video) => (
           <MotionBox
@@ -52,8 +99,11 @@ const VideoPlayer = ({ videoFolder }) => {
             boxShadow="sm"
             cursor="pointer"
             border="2px solid"
-            borderColor={selectedVideo?.name === video.name ? 'blue.500' : 'transparent'}
+            borderColor={selectedVideo?.name === video.name ? selectedBorderColor : 'transparent'}
             transition="all 0.2s"
+            _hover={{
+              bg: cardHoverColor
+            }}
           >
             <VStack spacing={2} align="start">
               <Text fontWeight="medium" noOfLines={2}>
