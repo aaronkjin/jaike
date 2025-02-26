@@ -125,7 +125,6 @@ const LandingPage = () => {
         </VStack>
       </Container>
       
-      {/* Dark Mode Toggle - Fixed to viewport bottom right */}
       <IconButton
         aria-label="Toggle color mode"
         icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
