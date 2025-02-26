@@ -14,6 +14,7 @@ from moviepy.tools import subprocess_call
 from openai import OpenAI
 import boto3
 from authlib.integrations.flask_client import OAuth
+import re
 
 
 
@@ -409,6 +410,34 @@ def get_user():
 def logout():
     session.pop('user', None)
     return jsonify({"message": "Logged out successfully"}), 200
+
+@app.route('/user_videos', methods=['GET'])
+def get_user_videos():
+    try:
+        user = session.get('user')
+        if not user:
+            return jsonify({"error": "Not authenticated"}), 401
+
+        # Use Python's re module for regex
+        user_email = re.sub(r'[^a-zA-Z0-9]', '_', user['email']).lower()
+        
+        # List all objects with user's email prefix
+        response = s3_client.list_objects_v2(
+            Bucket=S3_BUCKET,
+            Prefix=f"{user_email}/"
+        )
+        
+        # Get unique folder names (excluding input/output subfolders)
+        folders = set()
+        for obj in response.get('Contents', []):
+            path_parts = obj['Key'].split('/')
+            if len(path_parts) > 2:  # user_email/folder_name/...
+                folders.add(path_parts[1])
+        
+        return jsonify({"folders": list(folders)}), 200
+    except Exception as e:
+        print(f"Error fetching user videos: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 

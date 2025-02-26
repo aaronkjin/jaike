@@ -17,10 +17,13 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  Text
+  Text,
+  HStack,
+  Divider
 } from '@chakra-ui/react';
 import { useAuth } from '../context/AuthContext';
 import { keyframes } from '@emotion/react';
+import { ChevronDownIcon } from '@chakra-ui/icons';
 
 const pulseGlow = keyframes`
   0% {
@@ -114,6 +117,7 @@ const VideoUploader = () => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [processedFolder, setProcessedFolder] = useState(null);
+  const [previousVideos, setPreviousVideos] = useState([]);
   const bgColor = useColorModeValue('gray.50', 'gray.700');
   const { user, logout } = useAuth();
   const buttonBgColor = useColorModeValue('blackAlpha.800', 'gray.700');
@@ -204,9 +208,60 @@ const VideoUploader = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchPreviousVideos = async () => {
+      try {
+        const response = await axios.get('http://localhost:5001/user_videos', {
+          withCredentials: true
+        });
+        setPreviousVideos(response.data.folders);
+      } catch (error) {
+        console.error('Error fetching previous videos:', error);
+      }
+    };
+
+    fetchPreviousVideos();
+  }, []);
+
+  const handlePreviousVideoSelect = (folderName) => {
+    if (folderName) {
+      const safeEmail = user.email.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      const fullPath = `${safeEmail}/${folderName}`;
+      setProcessedFolder(fullPath);
+    }
+  };
+
   return (
     <Box position="relative" minH="100vh">
-      <Flex position="absolute" right="6" top="6" zIndex="10">
+      <Flex position="absolute" right="6" top="6" zIndex="10" align="center" gap={4}>
+        {/* My Videos Menu */}
+        <Menu>
+          <MenuButton
+            as={Button}
+            rightIcon={<ChevronDownIcon />}
+            variant="outline"
+            colorScheme="blue"
+            size="sm"
+          >
+            My Videos
+          </MenuButton>
+          <MenuList>
+            {previousVideos.length === 0 ? (
+              <MenuItem isDisabled>No videos yet</MenuItem>
+            ) : (
+              previousVideos.map((folder) => (
+                <MenuItem
+                  key={folder}
+                  onClick={() => handlePreviousVideoSelect(folder)}
+                >
+                  {folder.split('_').slice(0, -1).join('_')}
+                </MenuItem>
+              ))
+            )}
+          </MenuList>
+        </Menu>
+
+        {/* User Menu */}
         <Menu>
           <MenuButton
             as={Button}
@@ -227,26 +282,8 @@ const VideoUploader = () => {
               transition="all 0.2s cubic-bezier(.08,.52,.52,1)"
             />
           </MenuButton>
-          <MenuList
-            bg={useColorModeValue('gray.100', 'gray.700')}
-            borderColor={useColorModeValue('gray.200', 'gray.600')}
-            boxShadow="xl"
-            minW="120px"
-            borderRadius="lg"
-            py={1}
-            zIndex="10"
-          >
-            <MenuItem
-              onClick={logout}
-              bg="transparent"
-              _hover={{
-                bg: useColorModeValue('gray.200', 'gray.600'),
-                borderRadius: 'md'
-              }}
-              _focus={{ bg: 'transparent' }}
-              _active={{ bg: 'transparent' }}
-              transition="all 0.2s cubic-bezier(.08,.52,.52,1)"
-            >
+          <MenuList>
+            <MenuItem onClick={logout}>
               <Text fontWeight="medium">Log Out</Text>
             </MenuItem>
           </MenuList>
