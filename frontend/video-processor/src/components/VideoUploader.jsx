@@ -196,6 +196,10 @@ const VideoUploader = () => {
   const inputBorderColor = useColorModeValue('gray.300', 'gray.600');
   const inputHoverColor = useColorModeValue('gray.400', 'gray.500');
 
+
+  const [numClips, setNumClips] = useState(5); // Default value of 5
+  const [lengthOfClips, setLengthOfClips] = useState(60); // Default value of 60 seconds
+
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
@@ -209,7 +213,8 @@ const VideoUploader = () => {
     bucketName: 'videolecturefiles',
     region: 'us-west-1',
     accessKeyId: 'AKIA2NK3YJBY5WPPYDMV',
-    secretAccessKey: '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'
+    secretAccessKey: 'V+s48rRN8kqQQQBiDioAkvzMN4f2OtEpK6zLpCv2',
+    useAcceleration: true
   };
 
   const handleFileChange = (event) => {
@@ -232,7 +237,10 @@ const VideoUploader = () => {
     const S3 = new AWS.S3({
       region: s3Config.region,
       accessKeyId: s3Config.accessKeyId,
-      secretAccessKey: s3Config.secretAccessKey
+      secretAccessKey: s3Config.secretAccessKey,
+      ...(s3Config.useAcceleration && {
+        useAccelerateEndpoint: true
+      })
     });
 
     const params = {
@@ -275,7 +283,9 @@ const VideoUploader = () => {
 
       toast('Processing video...');
       await axios.post('http://localhost:5001/generate_videos', {
-        video_folder: folderName
+        video_folder: folderName,
+        num_clips: numClips,
+        length_of_clips: lengthOfClips
       }, {
         withCredentials: true
       });
@@ -374,6 +384,46 @@ const VideoUploader = () => {
                     }}
                   />
                 </Box>
+                <Flex w="full" gap={4}>
+                <Box flex="1">
+                  <select
+                    value={numClips}
+                    onChange={(e) => setNumClips(parseInt(e.target.value))}
+                    disabled={uploading}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      borderColor: inputBorderColor,
+                      background: 'transparent'
+                    }}
+                  >
+                    <option value="3">3 clips</option>
+                    <option value="5">5 clips</option>
+                    <option value="7">7 clips</option>
+                    <option value="10">10 clips</option>
+                  </select>
+                </Box>
+                <Box flex="1">
+                  <select
+                    value={lengthOfClips}
+                    onChange={(e) => setLengthOfClips(parseInt(e.target.value))}
+                    disabled={uploading}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      borderColor: inputBorderColor,
+                      background: 'transparent'
+                    }}
+                  >
+                    <option value="30">30 seconds</option>
+                    <option value="45">45 seconds</option>
+                    <option value="60">60 seconds</option>
+                    <option value="90">90 seconds</option>
+                  </select>
+                </Box>
+              </Flex>
                 <Button
                   type="submit"
                   disabled={!file || uploading}
