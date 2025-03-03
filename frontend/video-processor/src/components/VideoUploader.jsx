@@ -26,11 +26,22 @@ import {
   AspectRatio,
   Progress,
   Spinner,
-  useColorMode
+  useColorMode,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  FormControl,
+  FormLabel,
+  Select
 } from '@chakra-ui/react';
 import { useAuth } from '../context/AuthContext';
 import { keyframes } from '@emotion/react';
-import { HamburgerIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
+import { HamburgerIcon, MoonIcon, SunIcon, SettingsIcon } from '@chakra-ui/icons';
 
 const pulseGlow = keyframes`
   0% {
@@ -196,7 +207,8 @@ const VideoUploader = () => {
   const inputBorderColor = useColorModeValue('gray.300', 'gray.600');
   const inputHoverColor = useColorModeValue('gray.400', 'gray.500');
 
-
+  // Advanced settings modal
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const [numClips, setNumClips] = useState(5); // Default value of 5
   const [lengthOfClips, setLengthOfClips] = useState(60); // Default value of 60 seconds
 
@@ -357,103 +369,120 @@ const VideoUploader = () => {
             <TextCarousel />
             <form onSubmit={handleSubmit}>
               <VStack spacing={6}>
-                <Box w="full">
-                  <Input
-                    type="file"
-                    accept="video/*"
-                    onChange={handleFileChange}
-                    disabled={uploading}
-                    p={2}
-                    height="48px"
-                    fontSize="md"
-                    border="2px dashed"
-                    borderColor={inputBorderColor}
-                    _hover={{
-                      borderColor: inputHoverColor
-                    }}
-                    sx={{
-                      '::file-selector-button': {
-                        height: '100%',
-                        padding: '0 20px',
-                        background: 'transparent',
-                        border: 'none',
-                        fontWeight: 'medium',
-                        color: iconColor,
-                        cursor: 'pointer'
-                      }
-                    }}
+                <Flex w="full" align="center">
+                  <Box flex="1" mr={2}>
+                    <Input
+                      type="file"
+                      accept="video/*"
+                      onChange={handleFileChange}
+                      disabled={uploading}
+                      p={2}
+                      height="48px"
+                      fontSize="md"
+                      border="2px dashed"
+                      borderColor={inputBorderColor}
+                      _hover={{
+                        borderColor: inputHoverColor
+                      }}
+                      sx={{
+                        '::file-selector-button': {
+                          height: '100%',
+                          padding: '0 20px',
+                          background: 'transparent',
+                          border: 'none',
+                          fontWeight: 'medium',
+                          color: iconColor,
+                          cursor: 'pointer'
+                        }
+                      }}
+                    />
+                  </Box>
+                  <IconButton
+                    aria-label="Advanced Settings"
+                    icon={<SettingsIcon />}
+                    onClick={onOpen}
+                    bg="transparent"
+                    color={iconColor}
+                    _hover={{ bg: 'rgba(0,0,0,0.05)' }}
                   />
-                </Box>
-                <Flex w="full" gap={4}>
-                <Box flex="1">
-                  <select
-                    value={numClips}
-                    onChange={(e) => setNumClips(parseInt(e.target.value))}
-                    disabled={uploading}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      borderColor: inputBorderColor,
-                      background: 'transparent'
-                    }}
+                </Flex>
+                
+                <Flex w="full">
+                  <Button
+                    type="submit"
+                    disabled={!file || uploading}
+                    bg={accentColor}
+                    color="white"
+                    size="lg"
+                    width="full"
+                    height="48px"
+                    _hover={!uploading ? {
+                      transform: 'translateY(-2px)',
+                      boxShadow: 'md',
+                      bg: 'blackAlpha.700'
+                    } : {}}
+                    transition="all 0.2s"
+                    position="relative"
+                    animation={uploading ? `${pulseGlow} 2s infinite` : undefined}
+                    _before={uploading ? {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      borderRadius: 'md',
+                    } : undefined}
                   >
-                    <option value="3">3 clips</option>
-                    <option value="5">5 clips</option>
-                    <option value="7">7 clips</option>
-                    <option value="10">10 clips</option>
-                  </select>
-                </Box>
-                <Box flex="1">
-                  <select
-                    value={lengthOfClips}
-                    onChange={(e) => setLengthOfClips(parseInt(e.target.value))}
-                    disabled={uploading}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      borderColor: inputBorderColor,
-                      background: 'transparent'
-                    }}
-                  >
-                    <option value="30">30 seconds</option>
-                    <option value="45">45 seconds</option>
-                    <option value="60">60 seconds</option>
-                    <option value="90">90 seconds</option>
-                  </select>
-                </Box>
-              </Flex>
-                <Button
-                  type="submit"
-                  disabled={!file || uploading}
-                  bg={accentColor}
-                  color="white"
-                  size="lg"
-                  width="full"
-                  height="48px"
-                  _hover={!uploading ? {
-                    transform: 'translateY(-2px)',
-                    boxShadow: 'md',
-                    bg: 'blackAlpha.700'
-                  } : {}}
-                  transition="all 0.2s"
-                  position="relative"
-                  animation={uploading ? `${pulseGlow} 2s infinite` : undefined}
-                  _before={uploading ? {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    borderRadius: 'md',
-                  } : undefined}
-                >
-                  {uploading ? 'Processing...' : 'Process'}
-                </Button>
+                    {uploading ? 'Processing...' : 'Process'}
+                  </Button>
+                </Flex>
               </VStack>
             </form>
+
+            {/* Advanced Settings Modal */}
+            <Modal isOpen={isOpen} onClose={onClose}>
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Advanced Settings</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody pb={6}>
+                  <FormControl mb={4}>
+                    <FormLabel>Number of Clips</FormLabel>
+                    <Select
+                      value={numClips}
+                      onChange={(e) => setNumClips(parseInt(e.target.value))}
+                    >
+                      <option value="3">3 clips</option>
+                      <option value="5">5 clips</option>
+                      <option value="7">7 clips</option>
+                      <option value="10">10 clips</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Length of Each Clip</FormLabel>
+                    <Select
+                      value={lengthOfClips}
+                      onChange={(e) => setLengthOfClips(parseInt(e.target.value))}
+                    >
+                      <option value="30">30 seconds</option>
+                      <option value="60">1 minute</option>
+                      <option value="120">2 minutes</option>
+                      <option value="300">5 minutes</option>
+                    </Select>
+                  </FormControl>
+                </ModalBody>
+                <ModalFooter>
+                  <Button onClick={onClose} bg={buttonBgColor}
+                    color="white"
+                    _hover={{ bg: 'blackAlpha.700' }}
+                    transition="all 0.2s"
+                  >
+                    Save
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
           </Box>
         )}
       </VStack>
