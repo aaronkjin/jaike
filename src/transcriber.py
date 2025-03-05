@@ -263,10 +263,11 @@ def create_segments(input_video, segments):
     temp_clips = []
 
     for segment_title, (start_time, end_time) in segments.items():
-        temp_clip_name = f"{segment_title}.mp4"
+        temp_clip_name = f"timestamp_{start_time:.2f}_{segment_title}.mp4"
         extract_subclip(input_video, start_time, end_time, f"tmpout/{temp_clip_name}")
         temp_clips.append(temp_clip_name)
-
+    
+    return temp_clips
 
 def download_from_s3(video_folder, local_path):
 
@@ -385,7 +386,6 @@ def generate_videos(video_folder, num_clips=5, max_length=60):
     #     print(f"FINISHED TRANSCRIBING CLIP {idx}")
     
     print("FINISHED TRANSCRIPTION")
-
     
     os.makedirs('tmpout', exist_ok=True)
 
@@ -408,7 +408,6 @@ def generate_videos(video_folder, num_clips=5, max_length=60):
             print(f"Deleted {folder}/")
     
     loop.close()
-
 
 @app.route("/generate_videos", methods=["POST"])
 def generate_videos_endpoint():

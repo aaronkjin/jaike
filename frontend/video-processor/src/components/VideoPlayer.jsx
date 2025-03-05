@@ -5,36 +5,17 @@ import { motion } from 'framer-motion';
 
 const MotionBox = motion(Box);
 
-// Function to determine the chronological order priority of a video
-const getVideoPriority = (videoName) => {
-  const nameLower = videoName.toLowerCase();
-  
-  // Priority 1: Intro/Introduction videos should come first
-  if (nameLower.includes('intro') || nameLower.includes('introduction')) {
-    return 1;
-  }
-  
-  // Priority 2: Overview or summary videos
-  if (nameLower.includes('overview') || nameLower.includes('summary')) {
-    return 2;
-  }
-  
-  // Priority 3: Numbered videos (extract the number for sorting)
-  const numberMatch = nameLower.match(/part\s*(\d+)|section\s*(\d+)|chapter\s*(\d+)|(\d+)/);
-  if (numberMatch) {
-    const number = parseInt(numberMatch[1] || numberMatch[2] || numberMatch[3] || numberMatch[4]);
-    return 100 + number; // Adding 100 to ensure it comes after non-numbered priorities
-  }
-  
-  // Priority 4: Conclusion/Summary videos should come last
-  if (nameLower.includes('conclusion') || nameLower.includes('final') || nameLower.includes('end')) {
-    return 1000;
-  }
-  
-  // Default priority for other videos
-  return 500;
-};
+/**
+ * @typedef {Object} VideoInfo
+ * @property {string} name
+ * @property {string} url
+ * @property {number|null} startTime
+ */
 
+const getDisplayTitle = (videoName) => {
+  const displayTitle = videoName.replace(/^timestamp_\d+(\.\d+)?_/, '');
+  return displayTitle;
+};
 const VideoPlayer = ({ videoFolder }) => {
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -57,18 +38,28 @@ const VideoPlayer = ({ videoFolder }) => {
         });
         
         // Sort videos in chronological order
-        const sortedVideos = [...response.data.videos].sort((a, b) => {
-          const priorityA = getVideoPriority(a.name);
-          const priorityB = getVideoPriority(b.name);
+        const processedVideos = response.data.videos.map((video) => {
+          const timestampMatch = video.name.match(/timestamp_\d+(\.\d+)?/);
+          const startTime = timestampMatch ? parseFloat(timestampMatch[1]) : null;
           
-          if (priorityA !== priorityB) {
-            return priorityA - priorityB;
-          }
-          
-          // If same priority, sort alphabetically
-          return a.name.localeCompare(b.name);
+          return {
+            ...video,
+            startTime: startTime,
+            displayName: getDisplayTitle(video.name)
+          };
         });
         
+        const sortedVideos = [...processedVideos].sort((a, b) => {
+          if (a.startTime !== null && b.startTime != null) {
+            return a.startTime - b.startTime;
+          }
+
+          if (a.startTime != null) return -1;
+          if (b.startTime != null) return 1;
+
+          return a.name.localeCompare(b.name)
+        });
+
         setVideos(sortedVideos);
         
         // Auto-select the first video if none is selected
@@ -112,7 +103,7 @@ const VideoPlayer = ({ videoFolder }) => {
           >
             <VStack spacing={2} align="start">
               <Text fontWeight="medium" noOfLines={2} color={textColor}>
-                {video.name}
+                {video.displayName || video.name}
               </Text>
             </VStack>
           </MotionBox>
