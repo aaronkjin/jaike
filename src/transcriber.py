@@ -15,13 +15,25 @@ from openai import OpenAI
 import boto3
 from authlib.integrations.flask_client import OAuth
 import re
-
+import time
+import asyncio
+from openai import AsyncOpenAI
 
 
 FFMPEG_BINARY = os.getenv("FFMPEG_BINARY", "ffmpeg")
 
 SYSTEM_PROMPT = """
- You are an AI assistant for the platform Jaike, an application that generates short-form content based on lecture videos. As part of Jaike you will take as input a transcript of the lecture's audio where the format is (sentence | seconds from start) separated by newlines.  The short-form videos must each be under 1 minute, so please only select segments that are less than 60 seconds long. You should therefore return as output only a dictionary with format (segment title): (start time, end_time), ensuring that the output is directly a json.
+I want to identify {num_clips} key segments from lecture transcripts to create short-form summary videos.
+
+Each segment must provide key components of the overarching lecture video while being brief and self-contained, with a maximum length of {max_length} seconds.
+
+For each segment, return a JSON dictionary with the format (segment_title) : (start_time, end_time). The output should be only the JSON object with no additional explanations.
+
+Be careful to ensure segments are no longer than {max_length} seconds, that timestamps are accurate, and that the output is valid JSON that can be parsed directly.
+
+--
+
+For context: I'm building Jaike, a platform that automatically generates short-form content from lecture videos. The input will be transcript data formatted as (sentence | seconds from start) separated by newlines. The platform needs exact start and end timestamps to clip the video appropriately. The segments should stand alone as educational content. The JSON output will be processed programmatically, so it must contain nothing but valid JSON syntax.
 """
 
 app = Flask(__name__)
@@ -53,6 +65,19 @@ s3_client = boto3.client(
     region_name=S3_REGION,
     aws_access_key_id='AKIA2NK3YJBY5WPPYDMV',
     aws_secret_access_key='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',
+)
+
+s3_accelerated = boto3.client(
+    "s3",
+    region_name=S3_REGION,
+    aws_access_key_id='AKIA2NK3YJBY5WPPYDMV',
+    aws_secret_access_key='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',
+    config=boto3.session.Config(
+        s3={'use_accelerate_endpoint': True},
+        connect_timeout=60,
+        read_timeout=120,
+        retries={'max_attempts': 10, 'mode': 'adaptive'}
+    )
 )
 
 # Add these near the top of your file
@@ -156,16 +181,19 @@ def process_transcription(transcription, file_idx=0):
     return processed_segments
 
 
-def select_segments(client, transcript):
+def select_segments(client, transcript, num_clips=5, max_length=60):
     """
     Prompt OpenAI to select multiple short segments from the transcript
     """
+
+    formatted_prompt = SYSTEM_PROMPT.format(num_clips=num_clips, max_length=max_length)
+
     response = client.chat.completions.create(
         model="gpt-4-turbo",  # Choose the model
         messages=[
             {
                 "role": "system",
-                "content": SYSTEM_PROMPT,
+                "content": formatted_prompt,
             },
             {"role": "user", "content": transcript},
         ],
@@ -248,13 +276,66 @@ def download_from_s3(video_folder, local_path):
 
     try:
         print('downloading from s3')
-        s3_client.download_file(S3_BUCKET, s3_key, local_path)
+        s3_accelerated.download_file(S3_BUCKET, s3_key, local_path)
         print(f"Downloaded from S3: {s3_key} to {local_path}")
         return local_path
     except Exception as e:
         print(f"Error downloading from S3: {e}")
         return None
 
+async def transcribe_audio_file_async(client, input_path=None, file_idx=0):
+    """
+    Async version of transcribe_audio_file that uses the AsyncOpenAI client
+    """
+    if not os.path.exists(input_path):
+        print(f"Error: Audio file {input_path} not found.")
+        return []
+    
+    with open(input_path, "rb") as audio_file:
+        response = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file,
+            response_format="verbose_json",
+            timestamp_granularities=["segment"],
+            language="en"
+        )
+
+    return process_transcription(response, file_idx)
+
+async def transcribe_audio_files_async(audio_clips):
+
+    client = AsyncOpenAI(
+        api_key=os.environ.get("OPENAI_API_KEY"),
+    )
+
+    tasks = []
+    
+    for idx, clip_file in enumerate(audio_clips):
+        print(f"Creating task for chunk {idx}: {clip_file}")
+        task = asyncio.create_task(
+            transcribe_audio_file_async(client, input_path=clip_file, file_idx=idx)
+        )
+        tasks.append(task)
+    
+    start_time = time.time()
+    print(f"Starting async transcription of {len(tasks)} audio clips...")
+    
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    elapsed = time.time() - start_time
+    print(f"FINISHED ASYNC TRANSCRIPTION in {elapsed:.2f} seconds")
+    
+    all_lines = []
+    
+    for idx, result in enumerate(results):
+        if isinstance(result, Exception):
+            print(f"Error transcribing chunk {idx}: {str(result)}")
+        else:
+            all_lines.extend(result)
+
+    all_lines.sort(key=lambda x: float(x.split(" | ")[-1]))
+    
+    return all_lines
 
 def upload_folder_to_s3(local_folder, video_folder):
 
@@ -276,22 +357,34 @@ def upload_folder_to_s3(local_folder, video_folder):
 
     return uploaded_files
 
-def generate_videos(video_folder):
+def generate_videos(video_folder, num_clips=5, max_length=60):
 
     client = OpenAI(
         api_key=os.environ.get("OPENAI_API_KEY"),
     )
 
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     local_video_path = f"tmp/{video_folder}.mp4"  # Temporary storage
     download_from_s3(video_folder, local_video_path)
 
+    print("FINISHED DOWNLOADING FROM S3")
+
     clips = convert_video_to_audio(local_video_path)
 
-    lines = []
-    for idx, clip_file in enumerate(clips):
-        print(clip_file)
-        output = transcribe_audio_file(client, input_path=clip_file, file_idx=idx)
-        lines += output
+    print("FINISHED SPLITTING INTO CLIPS")
+
+    lines = loop.run_until_complete(transcribe_audio_files_async(clips))
+
+    # lines = []
+    # for idx, clip_file in enumerate(clips):
+    #     print(clip_file)
+    #     output = transcribe_audio_file(client, input_path=clip_file, file_idx=idx)
+    #     lines += output
+    #     print(f"FINISHED TRANSCRIBING CLIP {idx}")
+    
+    print("FINISHED TRANSCRIPTION")
 
     
     os.makedirs('tmpout', exist_ok=True)
@@ -301,7 +394,9 @@ def generate_videos(video_folder):
     save_txt("\n".join(lines), transcript_path)
 
     transcript = read_txt(transcript_path)
-    segments = select_segments(client, transcript)
+    segments = select_segments(client, transcript, num_clips, max_length)
+
+    print("OPEN AI FINISHED SELECTING CLIPS")
 
     create_segments(local_video_path, segments)
 
@@ -311,6 +406,8 @@ def generate_videos(video_folder):
         if os.path.exists(folder):
             shutil.rmtree(folder) 
             print(f"Deleted {folder}/")
+    
+    loop.close()
 
 
 @app.route("/generate_videos", methods=["POST"])
@@ -331,8 +428,10 @@ def generate_videos_endpoint():
             return jsonify({"error": "Missing 'video_folder' in request"}), 400
 
         video_folder = data["video_folder"]
+        num_clips = data.get("num_clips", 5)  # Default to 5 if not provided
+        length_of_clips = data.get("length_of_clips", 60)  # Default to 60 if not provided
 
-        generate_videos(video_folder)
+        generate_videos(video_folder, num_clips, length_of_clips)
         return jsonify({"message": "Videos generated successfully"}), 200
 
     except Exception as e:
