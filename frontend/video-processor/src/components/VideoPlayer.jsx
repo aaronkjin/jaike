@@ -21,8 +21,8 @@ const MotionBox = motion(Box);
  */
 
 const getDisplayTitle = (videoName) => {
-  const displayTitle = videoName.replace(/^timestamp_\d+(\.\d+)?_/, '');
-  return displayTitle;
+  // Remove the timestamp prefix and return just the title
+  return videoName.replace(/^timestamp_[\d.]+_/, '');
 };
 
 const VideoPlayer = ({ videoFolder }) => {
@@ -37,8 +37,6 @@ const VideoPlayer = ({ videoFolder }) => {
   const { user } = useAuth();
   const { colorMode } = useColorMode();
   const toast = useToast();
-  
-  // Updated color values for better consistency
   const bgColor = useColorModeValue('gray.50', 'gray.700');
   const cardBg = useColorModeValue('white', 'gray.800');
   const selectedBorderColor = useColorModeValue('blackAlpha.800', 'gray.500');
@@ -106,32 +104,31 @@ const VideoPlayer = ({ videoFolder }) => {
         const response = await axios.get(`http://localhost:5001/list_videos/${videoFolder}`, {
           withCredentials: true
         });
-        
+
         // Sort videos in chronological order
         const processedVideos = response.data.videos.map((video) => {
-          const timestampMatch = video.name.match(/timestamp_\d+(\.\d+)?/);
+          // Extract timestamp from format: timestamp_123.45_title
+          const timestampMatch = video.name.match(/^timestamp_([\d.]+)_/);
           const startTime = timestampMatch ? parseFloat(timestampMatch[1]) : null;
-          
+
           return {
             ...video,
             startTime: startTime,
             displayName: getDisplayTitle(video.name)
           };
         });
-        
+
         const sortedVideos = [...processedVideos].sort((a, b) => {
-          if (a.startTime !== null && b.startTime != null) {
+          if (a.startTime !== null && b.startTime !== null) {
             return a.startTime - b.startTime;
           }
-
-          if (a.startTime != null) return -1;
-          if (b.startTime != null) return 1;
-
-          return a.name.localeCompare(b.name)
+          if (a.startTime !== null) return -1;
+          if (b.startTime !== null) return 1;
+          return a.name.localeCompare(b.name);
         });
 
         setVideos(sortedVideos);
-        
+
         // Auto-select the first video if none is selected
         if (sortedVideos.length > 0 && !selectedVideo) {
           setSelectedVideo(sortedVideos[0]);

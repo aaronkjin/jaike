@@ -537,7 +537,33 @@ def get_user_videos():
         print(f"Error fetching user videos: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/delete_video/<path:video_folder>', methods=['DELETE'])
+def delete_video(video_folder):
+    try:
+        print(video_folder)
+        user = session.get('user')
+        if not user:
+            return jsonify({"error": "Not authenticated"}), 401
 
+        # Verify the video belongs to the user
+        user_email = re.sub(r'[^a-zA-Z0-9]', '_', user['email']).lower()
+
+        # List and delete all objects in the folder
+        response = s3_client.list_objects_v2(
+            Bucket=S3_BUCKET,
+            Prefix=f"{user_email}/{video_folder}/"
+        )
+        
+        for obj in response.get('Contents', []):
+            s3_client.delete_object(
+                Bucket=S3_BUCKET,
+                Key=obj['Key']
+            )
+
+        return jsonify({"message": "Video deleted successfully"}), 200
+    except Exception as e:
+        print(f"Error deleting video: {e}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001)

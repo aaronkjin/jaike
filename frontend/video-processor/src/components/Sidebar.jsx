@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { 
-  Box, 
-  VStack, 
-  Heading, 
-  Text, 
+import {
+  Box,
+  VStack,
+  Heading,
+  Text,
   Flex,
   useColorModeValue,
   List,
   ListItem,
   IconButton,
   Divider,
-  useColorMode
+  useColorMode,
+  useToast,
+  HStack
 } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
-import { HamburgerIcon } from '@chakra-ui/icons';
+import { HamburgerIcon, DeleteIcon } from '@chakra-ui/icons';
 import { FaHome } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,7 +27,8 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { colorMode } = useColorMode();
-  
+  const toast = useToast();
+
   const mainBgColor = useColorModeValue('#f7f7f7', '#212121');
   const sidebarBgColor = useColorModeValue('#dedede', '#1A202C');
   const textColor = useColorModeValue('#222222', '#e0e0e0');
@@ -63,6 +66,34 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
     }
   };
 
+  const handleDelete = async (folder, e) => {
+    e.stopPropagation(); // Prevent video selection when clicking delete
+
+    try {
+      await axios.delete(`http://localhost:5001/delete_video/${folder}`, {
+        withCredentials: true
+      });
+
+      // Remove the deleted video from the list
+      setPreviousVideos(previousVideos.filter(v => v !== folder));
+
+      toast({
+        title: "Video deleted",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error deleting video",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   // Format the folder name for display (remove timestamps, etc.)
   const formatFolderName = (folder) => {
     return folder.split('_').slice(0, -1).join('_').replace(/_/g, ' ');
@@ -71,9 +102,9 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
   // Format timestamp to readable date
   const formatDate = (timestamp) => {
     const date = new Date(parseInt(timestamp));
-    return date.toLocaleDateString(undefined, { 
-      month: 'short', 
-      day: 'numeric', 
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -115,7 +146,7 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
             My Videos
           </Heading>
         </Flex>
-        
+
         {/* Home icon at the top right */}
         <IconButton
           aria-label="Go to home"
@@ -127,7 +158,7 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
           _hover={{ bg: 'rgba(0,0,0,0.05)' }}
         />
       </Flex>
-      
+
       {/* Videos Section */}
       <VStack spacing={4} align="stretch" mt={6}>
         {loading ? (
@@ -135,31 +166,32 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
         ) : previousVideos.length === 0 ? (
           <Text color={secondaryTextColor}>No videos processed yet</Text>
         ) : (
-          <List spacing={1}>
-            {previousVideos.map((folder) => {
-              const timestamp = folder.split('_').pop();
-              
-              return (
-                <ListItem key={folder}>
-                  <Box
-                    p={3}
-                    borderRadius="lg"
-                    cursor="pointer"
-                    _hover={{ bg: hoverBgColor }}
-                    onClick={() => handleVideoSelect(folder)}
-                    transition="all 0.2s"
-                  >
-                    <Text fontWeight="medium" noOfLines={1} fontSize="sm">
-                      {formatFolderName(folder)}
-                    </Text>
-                    <Text fontSize="xs" color={secondaryTextColor} noOfLines={1} mt={1}>
-                      {formatDate(timestamp)}
-                    </Text>
-                  </Box>
-                </ListItem>
-              );
-            })}
-          </List>
+          <VStack spacing={2} align="stretch">
+            {previousVideos.map((folder) => (
+              <HStack
+                key={folder}
+                p={3}
+                cursor="pointer"
+                borderRadius="md"
+                _hover={{ bg: hoverBgColor }}
+                onClick={() => handleVideoSelect(folder)}
+                justify="space-between"
+              >
+                <Text noOfLines={1}>
+                  {formatFolderName(folder)}
+                </Text>
+                <IconButton
+                  aria-label="Delete video"
+                  icon={<DeleteIcon />}
+                  size="sm"
+                  variant="ghost"
+                  colorScheme="red"
+                  onClick={(e) => handleDelete(folder, e)}
+                  _hover={{ bg: 'red.100' }}
+                />
+              </HStack>
+            ))}
+          </VStack>
         )}
       </VStack>
     </MotionBox>
