@@ -211,7 +211,7 @@ const VideoPlayer = ({ videoFolder }) => {
               <Text fontWeight="medium" noOfLines={2} color={textColor}>
                 {video.displayName || video.name}
               </Text>
-              {notes[video.name] && (
+              {notes[video.name]?.content?.trim() && (
                 <HStack spacing={1}>
                   <InfoIcon color='blue.500' boxSize={3} />
                   <Text fontsize='xs' color='blue.500'>Has notes</Text>
@@ -232,16 +232,16 @@ const VideoPlayer = ({ videoFolder }) => {
         >
           <Flex direction={{ base: 'column', lg: 'row' }} gap={6} w='full'>
             {/* VideoPlayer */}
-            <Box flex='1' minW={{ base: '100%', lg: '60%'}}>
+            <Box flex='1' minW={{ base: '100%', lg: '60%' }}>
               <AspectRatio ratio={16 / 9} w="full" borderRadius="xl" overflow="hidden" boxShadow="lg">
                 <video
                   controls
                   src={selectedVideo.url}
-                  style={{ 
-                    width: '100%', 
-                    height: '100%', 
+                  style={{
+                    width: '100%',
+                    height: '100%',
                     objectFit: 'cover',
-                    backgroundColor: colorMode === 'dark' ? '#1A202C' : 'white' 
+                    backgroundColor: colorMode === 'dark' ? '#1A202C' : 'white'
                   }}
                 >
                   Your browser does not support the video tag.
