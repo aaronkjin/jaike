@@ -10,7 +10,7 @@ An AI-powered application that generates short-form content based on lectures. B
 
 ## Getting Started
 
-1. Simply, get our Dockerfile up and running to start
+1. Simply, get our Docker container up and running to start
 
 ```bash
 docker compose up --build
