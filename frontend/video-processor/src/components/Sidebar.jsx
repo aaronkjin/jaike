@@ -97,6 +97,7 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
         status: "success",
         duration: 3000,
         isClosable: true,
+        position: 'top-right'
       });
     } catch (error) {
       toast({
@@ -105,6 +106,7 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
         status: "error",
         duration: 3000,
         isClosable: true,
+        position: 'top-right'
       });
     }
   };
@@ -154,11 +156,15 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
 
       <Divider borderColor={borderColor} />
 
-      <Flex p={4} onClick={onHomeClick} cursor="pointer" _hover={{ bg: hoverBgColor }}>
-        <IconButton
-          icon={<FaHome />}
-          variant="ghost"
-          aria-label="Home"
+      <Flex 
+        p={4} 
+        onClick={onHomeClick} 
+        cursor="pointer" 
+        _hover={{ bg: hoverBgColor }}
+        align="center"
+      >
+        <Box 
+          as={FaHome} 
           mr={2}
           color={iconColor}
         />

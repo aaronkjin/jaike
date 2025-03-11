@@ -10,50 +10,40 @@ An AI-powered application that generates short-form content based on lectures. B
 
 ## Getting Started
 
-1. Clone repo
+1. Simply, get our Dockerfile up and running to start
 
 ```bash
-git clone https://github.com/StanfordCS194/win25-Team34.git
-cd win25-Team34
+docker compose up --build
 ```
 
-2. Create/activate virtual env
+## Walkthrough
 
-```bash
-python -m venv venv
-source venv/bin/activate
-```
+### Landing Page
 
-3. Install dependencies
+<img width="1000" alt="Image" src="https://github.com/user-attachments/assets/e7cdd81d-6c62-4e50-9ebc-6ce703fc9099" />
 
-```bash
-pip install -r requirements.txt
-```
+### Main Page
 
-4. Create a .env file in root directory and add
+<img width="1000" alt="Image" src="https://github.com/user-attachments/assets/ca53eb5c-7fda-427c-b713-9201fe7bd676" />
 
-```bash
-OPENAI_API_KEY=your_api_key_here
-```
+### Sidebar
 
-5. Run Flask server
+<img width="1000" alt="Image" src="https://github.com/user-attachments/assets/44f3e4f6-d210-4889-9939-163f4c9a6bd1" />
 
-```bash
-python src/transcriber.py
-```
+### Processed Videos
 
-6. Use curl command in separate terminal
+<img width="1000" alt="Image" src="https://github.com/user-attachments/assets/9d4ac8c2-5efe-4288-adfd-2e88ae497295" />
 
-```bash
-curl -X POST -H "Content-Type: application/json" -d '{"video_path": "[VIDEO_FILE_PATH].mp4"}' http://localhost:[PORT]/generate_videos
-```
+## Developers
 
-## Source Control Task
+Andrew Chung
+[GitHub Profile](https://github.com/awchung04)
 
-Andrew C
+Ryan Cheng
+[GitHub Profile](https://github.com/ryachen01)
 
-Ryan C
+Aaron Jin  
+[GitHub Profile](https://github.com/aaronkjin)
 
-Aaron J
-
-Ryan S
+Ryan Suh
+[GitHub Profile](https://github.com/ryanjsuh)

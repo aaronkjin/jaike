@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import AWS from 'aws-sdk';
 import VideoPlayer from './VideoPlayer';
 import Sidebar from './Sidebar';
-import toast, { Toaster } from 'react-hot-toast';
 import {
   Heading,
   Button,
@@ -37,7 +36,8 @@ import {
   useDisclosure,
   FormControl,
   FormLabel,
-  Select
+  Select,
+  useToast
 } from '@chakra-ui/react';
 import { useAuth } from '../context/AuthContext';
 import { keyframes } from '@emotion/react';
@@ -135,6 +135,7 @@ const TextCarousel = () => {
 const LoadingVideo = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [progressValue, setProgressValue] = useState(0);
+  const audioRef = useRef(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -151,19 +152,40 @@ const LoadingVideo = () => {
     setProgressValue(newProgress);
   }, [elapsedTime]);
 
+  // Handle cleanup of audio when component unmounts
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
+
   const minutes = Math.floor(elapsedTime / 60);
   const seconds = elapsedTime % 60;
 
   return (
     <Box mt={6} width="100%">
       <AspectRatio ratio={16 / 9} maxW="1000px" mx="auto">
-        <iframe
-          src="https://www.youtube.com/embed/ChBg4aowzX8?si=ulizhwCIIz1jzjgk&autoplay=1&loop=1&playlist=ChBg4aowzX8"
+        <video
+          src="/assets/jaike_video.mp4"
           title="Processing Video"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
+          autoPlay
+          loop
+          muted
+          playsInline
+          style={{ pointerEvents: 'none' }}
         />
       </AspectRatio>
+      {/* Audio element for synchronized sound */}
+      <audio
+        ref={audioRef}
+        src="/assets/jaike_audio.mp4"
+        autoPlay
+        loop
+        style={{ display: 'none' }}
+      />
       <VStack spacing={3} mt={4} align="center">
         <Flex align="center">
           <Spinner size="sm" mr={2} />
@@ -211,6 +233,8 @@ const VideoUploader = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [numClips, setNumClips] = useState(5); // Default value of 5
   const [lengthOfClips, setLengthOfClips] = useState(60); // Default value of 60 seconds
+
+  const toast = useToast();
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -286,7 +310,13 @@ const VideoUploader = () => {
           withCredentials: true
         });
         if (response.data.videos && response.data.videos.length > 0) {
-          toast.success('Videos already processed!');
+          toast({
+            title: 'Videos already processed!',
+            status: 'success',
+            duration: 2000,
+            isClosable: true,
+            position: 'top-right'
+          });
           setProcessedFolder(folderName);
           setCurrentView('player'); // Switch to player view
           return;
@@ -295,7 +325,15 @@ const VideoUploader = () => {
         console.log('No existing videos found, proceeding with processing');
       }
 
-      toast('Processing video...');
+      toast({
+        title: 'Processing video...',
+        status: 'info',
+        duration: null,
+        isClosable: false,
+        position: 'top-right',
+        id: 'processing'
+      });
+      
       await axios.post(`/generate_videos`, {
         video_folder: folderName,
         num_clips: numClips,
@@ -304,12 +342,27 @@ const VideoUploader = () => {
         withCredentials: true
       });
 
-      toast.success('Video processed successfully!');
+      toast.close('processing');
+      toast({
+        title: 'Video processed successfully!',
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+        position: 'top-right'
+      });
+      
       setProcessedFolder(folderName);
       setCurrentView('player'); // Switch to player view
     } catch (error) {
       console.error('Error:', error);
-      toast.error(`Error: ${error.message}`);
+      toast({
+        title: 'Error',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+        position: 'top-right'
+      });
     } finally {
       setUploading(false);
     }
@@ -582,7 +635,6 @@ const VideoUploader = () => {
           py="16"
           px={{ base: 4, md: 8 }}
         >
-          <Toaster position="top-center" />
           {currentView === 'home' ? renderHomeView() : renderPlayerView()}
         </Container>
 
