@@ -113,7 +113,9 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
 
   // Format the folder name for display (remove timestamps, etc.)
   const formatFolderName = (folder) => {
-    return folder.split('_').slice(0, -1).join('_').replace(/_/g, ' ');
+    let formatted = folder.split('_').slice(0, -1).join('_').replace(/_/g, ' ');
+    formatted = formatted.replace(/\s*mp4\s*$/i, '');
+    return formatted;
   };
 
   // Format timestamp to readable date

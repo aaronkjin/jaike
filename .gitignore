@@ -1,2 +1,9 @@
 venv
 .env
+# Large media files
+*.mp4
+frontend/video-processor/public/assets/*.mp4
+# Node modules
+node_modules/
+# Cache files
+.cache/
