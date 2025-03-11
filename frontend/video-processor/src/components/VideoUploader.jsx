@@ -135,7 +135,6 @@ const TextCarousel = () => {
 const LoadingVideo = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [progressValue, setProgressValue] = useState(0);
-  const audioRef = useRef(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -152,40 +151,34 @@ const LoadingVideo = () => {
     setProgressValue(newProgress);
   }, [elapsedTime]);
 
-  // Handle cleanup of audio when component unmounts
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-    };
-  }, []);
-
   const minutes = Math.floor(elapsedTime / 60);
   const seconds = elapsedTime % 60;
 
   return (
     <Box mt={6} width="100%">
-      <AspectRatio ratio={16 / 9} maxW="1000px" mx="auto">
-        <video
-          src="/assets/jaike_video.mp4"
-          title="Processing Video"
-          autoPlay
-          loop
-          muted
-          playsInline
-          style={{ pointerEvents: 'none' }}
-        />
+      <AspectRatio ratio={16 / 9} maxW="1000px" mx="auto" position="relative">
+        <Box>
+          <iframe
+            src="https://www.youtube.com/embed/ChBg4aowzX8?si=ulizhwCIIz1jzjgk&autoplay=1&loop=1&playlist=ChBg4aowzX8"
+            title="Processing Video"
+            allowFullScreen
+            style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          ></iframe>
+          {/* Overlay div to make video unclickable */}
+          <Box 
+            position="absolute" 
+            top="0" 
+            left="0" 
+            width="100%" 
+            height="100%" 
+            zIndex="1"
+            onClick={(e) => e.preventDefault()}
+            cursor="default"
+          />
+        </Box>
       </AspectRatio>
-      {/* Audio element for synchronized sound */}
-      <audio
-        ref={audioRef}
-        src="/assets/jaike_audio.mp4"
-        autoPlay
-        loop
-        style={{ display: 'none' }}
-      />
       <VStack spacing={3} mt={4} align="center">
         <Flex align="center">
           <Spinner size="sm" mr={2} />
