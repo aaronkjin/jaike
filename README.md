@@ -36,10 +36,10 @@ docker compose up --build
 
 ## Developers
 
-Andrew Chung [GitHub Profile](https://github.com/awchung04)
+[Andrew Chung](https://github.com/awchung04)
 
-Ryan Cheng [GitHub Profile](https://github.com/ryachen01)
+[Ryan Cheng](https://github.com/ryachen01)
 
-Aaron Jin [GitHub Profile](https://github.com/aaronkjin)
+[Aaron Jin](https://github.com/aaronkjin)
 
-Ryan Suh [GitHub Profile](https://github.com/ryanjsuh)
+[Ryan Suh](https://github.com/ryanjsuh)
