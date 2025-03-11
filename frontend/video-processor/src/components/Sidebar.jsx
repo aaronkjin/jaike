@@ -13,17 +13,20 @@ import {
   Divider,
   useColorMode,
   useToast,
-  HStack
+  HStack,
+  Spinner,
+  Button
 } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
-import { HamburgerIcon, DeleteIcon } from '@chakra-ui/icons';
+import { HamburgerIcon, DeleteIcon, ChevronLeftIcon } from '@chakra-ui/icons';
 import { FaHome } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 
 const MotionBox = motion(Box);
 
 const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
-  const [previousVideos, setPreviousVideos] = useState([]);
+  const [userVideos, setUserVideos] = useState([]);
+  const [sampleVideos, setSampleVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { colorMode } = useColorMode();
@@ -37,32 +40,44 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
   const secondaryTextColor = useColorModeValue('#444444', '#bbbbbb');
   const headingColor = useColorModeValue('#000000', '#ffffff');
   const iconColor = useColorModeValue('#333333', '#dddddd');
+  const sampleColor = useColorModeValue('blue.600', 'blue.300');
 
   useEffect(() => {
-    const fetchPreviousVideos = async () => {
+    const fetchVideos = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('http://localhost:5001/user_videos', {
+        const response = await axios.get(`/user_videos`, {
           withCredentials: true
         });
-        setPreviousVideos(response.data.folders);
+
+        setUserVideos(response.data.user_folders || []);
+        setSampleVideos(response.data.sample_folders || []);
       } catch (error) {
-        console.error('Error fetching previous videos:', error);
+        console.error('Error fetching videos:', error);
       } finally {
         setLoading(false);
       }
     };
 
     if (isOpen) {
-      fetchPreviousVideos();
+      fetchVideos();
     }
   }, [isOpen]);
 
-  const handleVideoSelect = (folderName) => {
-    if (folderName && user?.email) {
-      const safeEmail = user.email.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-      const fullPath = `${safeEmail}/${folderName}`;
-      onSelectVideo(fullPath);
+  const handleVideoSelect = (folderName, isSample = false) => {
+    if (folderName) {
+      let fullPath;
+
+      if (isSample) {
+        fullPath = `sample/${folderName}`;
+      } else if (user?.email) {
+        const safeEmail = user.email.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        fullPath = `${safeEmail}/${folderName}`;
+      }
+
+      if (fullPath) {
+        onSelectVideo(fullPath);
+      }
     }
   };
 
@@ -70,12 +85,12 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
     e.stopPropagation(); // Prevent video selection when clicking delete
 
     try {
-      await axios.delete(`http://localhost:5001/delete_video/${folder}`, {
+      await axios.delete(`/delete_video/${folder}`, {
         withCredentials: true
       });
 
       // Remove the deleted video from the list
-      setPreviousVideos(previousVideos.filter(v => v !== folder));
+      setUserVideos(userVideos.filter(v => v !== folder));
 
       toast({
         title: "Video deleted",
@@ -114,84 +129,102 @@ const Sidebar = ({ isOpen, onToggle, onSelectVideo, onHomeClick }) => {
   return (
     <MotionBox
       position="fixed"
-      left={0}
-      top={0}
-      bottom={0}
-      zIndex="999"
-      width="280px"
+      left={isOpen ? "0" : "-300px"}
+      top="0"
+      width="300px"
+      height="100vh"
       bg={sidebarBgColor}
-      borderRight="1px solid"
-      borderColor={borderColor}
-      boxShadow="sm"
+      zIndex="1000"
+      boxShadow="2px 0 10px rgba(0, 0, 0, 0.1)"
+      overflowY="auto"
       initial={{ x: isOpen ? 0 : "-100%" }}
       animate={{ x: isOpen ? 0 : "-100%" }}
       transition={{ duration: 0.25, ease: "easeInOut" }}
-      p={5}
-      overflow="auto"
     >
-      {/* Sidebar Header */}
-      <Flex justify="space-between" align="center" mb={6} pl={1}>
-        <Flex align="center">
-          <IconButton
-            aria-label="Toggle sidebar"
-            icon={<HamburgerIcon />}
-            variant="ghost"
-            color={iconColor}
-            onClick={onToggle}
-            size="md"
-            mr={2}
-            _hover={{ bg: 'rgba(0,0,0,0.05)' }}
-          />
-          <Heading size="sm" color={headingColor} fontWeight="semibold">
-            My Videos
-          </Heading>
-        </Flex>
-
-        {/* Home icon at the top right */}
+      <Flex justify="space-between" align="center" p={4}>
+        <Heading size="md" color={headingColor}>My Videos</Heading>
         <IconButton
-          aria-label="Go to home"
-          icon={<FaHome />}
+          icon={<ChevronLeftIcon />}
+          onClick={onToggle}
           variant="ghost"
+          aria-label="Close sidebar"
           color={iconColor}
-          onClick={onHomeClick}
-          size="md"
-          _hover={{ bg: 'rgba(0,0,0,0.05)' }}
         />
       </Flex>
 
-      {/* Videos Section */}
-      <VStack spacing={4} align="stretch" mt={6}>
+      <Divider borderColor={borderColor} />
+
+      <Flex p={4} onClick={onHomeClick} cursor="pointer" _hover={{ bg: hoverBgColor }}>
+        <IconButton
+          icon={<FaHome />}
+          variant="ghost"
+          aria-label="Home"
+          mr={2}
+          color={iconColor}
+        />
+        <Text color={textColor}>Home</Text>
+      </Flex>
+
+      <Divider borderColor={borderColor} />
+
+      <VStack align="stretch" spacing={0} mt={2}>
         {loading ? (
-          <Text color={secondaryTextColor}>Loading...</Text>
-        ) : previousVideos.length === 0 ? (
-          <Text color={secondaryTextColor}>No videos processed yet</Text>
+          <Flex justify="center" p={4}>
+            <Spinner />
+          </Flex>
         ) : (
-          <VStack spacing={2} align="stretch">
-            {previousVideos.map((folder) => (
-              <HStack
-                key={folder}
-                p={3}
-                cursor="pointer"
-                borderRadius="md"
-                _hover={{ bg: hoverBgColor }}
-                onClick={() => handleVideoSelect(folder)}
-                justify="space-between"
-              >
-                <Text noOfLines={1}>
-                  {formatFolderName(folder)}
-                </Text>
-                <IconButton
-                  aria-label="Delete video"
-                  icon={<DeleteIcon />}
-                  size="sm"
-                  variant="ghost"
-                  colorScheme="red"
-                  onClick={(e) => handleDelete(folder, e)}
-                  _hover={{ bg: 'red.100' }}
-                />
-              </HStack>
-            ))}
-          </VStack>
+          <>
+            {userVideos.length > 0 && (
+              <>
+                <Text px={4} py={2} fontWeight="bold" color={headingColor}>Uploaded Videos</Text>
+                {userVideos.map((folder) => (
+                  <Flex
+                    key={folder}
+                    p={4}
+                    cursor="pointer"
+                    _hover={{ bg: hoverBgColor }}
+                    onClick={() => handleVideoSelect(folder)}
+                    justify="space-between"
+                    align="center"
+                  >
+                    <Text color={textColor}>{formatFolderName(folder)}</Text>
+                    <IconButton
+                      icon={<DeleteIcon />}
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="red"
+                      onClick={(e) => handleDelete(folder, e)}
+                      aria-label="Delete video"
+                    />
+                  </Flex>
+                ))}
+                <Divider borderColor={borderColor} my={2} />
+              </>
+            )}
+
+            {sampleVideos.length > 0 && (
+              <>
+                <Text px={4} py={2} fontWeight="bold" color={headingColor}>Sample Videos</Text>
+                {sampleVideos.map((folder) => (
+                  <Flex
+                    key={folder}
+                    p={4}
+                    cursor="pointer"
+                    _hover={{ bg: hoverBgColor }}
+                    onClick={() => handleVideoSelect(folder, true)}
+                    justify="space-between"
+                    align="center"
+                  >
+                    <Text color={sampleColor}>{formatFolderName(folder)}</Text>
+                  </Flex>
+                ))}
+              </>
+            )}
+
+            {userVideos.length === 0 && sampleVideos.length === 0 && (
+              <Text p={4} color={secondaryTextColor}>No videos found. Upload a video to get started.</Text>
+            )}
+          </>
         )}
       </VStack>
     </MotionBox>

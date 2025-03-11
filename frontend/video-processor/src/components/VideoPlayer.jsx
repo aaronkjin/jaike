@@ -101,7 +101,7 @@ const VideoPlayer = ({ videoFolder }) => {
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const response = await axios.get(`http://localhost:5001/list_videos/${videoFolder}`, {
+        const response = await axios.get(`/list_videos/${videoFolder}`, {
           withCredentials: true
         });
 
@@ -236,7 +236,7 @@ const VideoPlayer = ({ videoFolder }) => {
               <AspectRatio ratio={16 / 9} w="full" borderRadius="xl" overflow="hidden" boxShadow="lg">
                 <video
                   controls
-                  src={selectedVideo.url}
+                  src={encodeURI(selectedVideo.url).replace(/\+/g, '%2B').replace(/&/g, '%26')}
                   style={{
                     width: '100%',
                     height: '100%',

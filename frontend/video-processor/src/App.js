@@ -1,15 +1,10 @@
 import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import VideoUploader from "./components/VideoUploader";
 import LandingPage from "./components/LandingPage";
 import { ChakraProvider, extendTheme, ColorModeScript } from "@chakra-ui/react";
 import "./components/VideoUploader.css";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { useAuth } from "./context/AuthContext";
 
 const theme = extendTheme({
   config: {
@@ -67,7 +62,13 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
-function AppRoutes() {
+function App() {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <Routes>
       <Route
@@ -87,21 +88,6 @@ function AppRoutes() {
         }
       />
     </Routes>
-  );
-}
-
-function App() {
-  return (
-    <>
-      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-      <ChakraProvider theme={theme}>
-        <Router>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
-        </Router>
-      </ChakraProvider>
-    </>
   );
 }
 

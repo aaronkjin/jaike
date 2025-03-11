@@ -2,8 +2,8 @@ import json
 import os
 import shutil
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, redirect, session
-from flask_cors import CORS
+from flask import Flask, request, jsonify, redirect, session, make_response
+from flask_cors import CORS, cross_origin
 from moviepy import (
     VideoFileClip,
 )
@@ -18,9 +18,11 @@ import re
 import time
 import asyncio
 from openai import AsyncOpenAI
+import subprocess
 
 
 FFMPEG_BINARY = os.getenv("FFMPEG_BINARY", "ffmpeg")
+FFPROBE_BINARY = os.getenv("FFPROBE_BINARY", "ffprobe")
 
 SYSTEM_PROMPT = """
 I want to identify {num_clips} key segments from lecture transcripts to create short-form summary videos.
@@ -36,42 +38,53 @@ Be careful to ensure segments are no longer than {max_length} seconds, that time
 For context: I'm building Jaike, a platform that automatically generates short-form content from lecture videos. The input will be transcript data formatted as (sentence | seconds from start) separated by newlines. The platform needs exact start and end timestamps to clip the video appropriately. The segments should stand alone as educational content. The JSON output will be processed programmatically, so it must contain nothing but valid JSON syntax.
 """
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)  # Disable Flask's default static file handling
 
-#needs a secret key to encrypt session cookies
-app.secret_key = 'secret-flask-server-key'
 
-# Update CORS and session configuration
+# Use a strong, consistent secret key
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'secret_key')
+
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 
+    'http://localhost:8000' 
+)
+BACKEND_URL = os.environ.get('BACKEND_URL',
+    'http://localhost:8000' 
+)
+
+print("FRONTEND:", FRONTEND_URL)
+print("BACKEND:", BACKEND_URL)
+
+# Update CORS configuration
 CORS(app,
-    origins="http://localhost:3000",
+    origins=[FRONTEND_URL],
     supports_credentials=True,
-    expose_headers=["Set-Cookie"],
-    allow_headers=["Content-Type"]
+    expose_headers=["Set-Cookie", "Authorization"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+    max_age=3600
 )
 
-# Configure session
+# Update session configuration
 app.config.update(
-    SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_DOMAIN=None,  # Allow cookies to be set for localhost
-    PERMANENT_SESSION_LIFETIME=timedelta(days=7)
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SAMESITE='None',  # Important for cross-site requests
 )
 
-S3_BUCKET = "videolecturefiles"
-S3_REGION = "us-west-1"  # Example: "us-east-1"
+# Update S3 configuration
+S3_BUCKET = os.environ.get('S3_BUCKET')
+S3_REGION = os.environ.get('S3_REGION')
 s3_client = boto3.client(
     "s3",
     region_name=S3_REGION,
-    aws_access_key_id='AKIA2NK3YJBY5WPPYDMV',
-    aws_secret_access_key='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',
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_KEY'),
 )
 
 s3_accelerated = boto3.client(
     "s3",
     region_name=S3_REGION,
-    aws_access_key_id='AKIA2NK3YJBY5WPPYDMV',
-    aws_secret_access_key='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',
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_KEY'),
     config=boto3.session.Config(
         s3={'use_accelerate_endpoint': True},
         connect_timeout=60,
@@ -83,11 +96,12 @@ s3_accelerated = boto3.client(
 # Add these near the top of your file
 oauth = OAuth(app)
 
-# Configure Google OAuth with additional settings
+oauth.init_app(app)
+# Update Google OAuth configuration
 oauth.register(
     name='google',
-    client_id='528134535091-gbucq1bhg751snvk7187ml9roc76cimh.apps.googleusercontent.com',
-    client_secret='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',
+    client_id=os.environ.get('GOOGLE_CLIENT_ID'),
+    client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={
         'scope': 'openid email profile',
@@ -105,6 +119,35 @@ def read_txt(output_path):
     with open(output_path, "r") as file:
         return file.read()
 
+def get_video_duration(video_path):
+    """
+    Get the duration of a video file using ffprobe
+    """
+    try:
+        # Use ffprobe to get video duration
+        cmd = [
+            FFPROBE_BINARY, 
+            '-v', 'error', 
+            '-show_entries', 'format=duration', 
+            '-of', 'json', 
+            video_path
+        ]
+        
+        print(f"Running ffprobe command: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"ffprobe error: {result.stderr}")
+            return 0
+            
+        data = json.loads(result.stdout)
+        duration = float(data['format']['duration'])
+        print(f"Video duration: {duration} seconds")
+        return duration
+    except Exception as e:
+        print(f"Error getting video duration: {e}")
+        # Return a default duration if ffprobe fails
+        return 0
 
 def convert_video_to_audio(video_path=None):
     """
@@ -122,9 +165,10 @@ def convert_video_to_audio(video_path=None):
     clips = []
 
     try:
-        video_clip = VideoFileClip(video_path)
+        # video_clip = VideoFileClip(video_path)
 
-        total_duration = int(video_clip.duration)
+        # total_duration = int(video_clip.duration)
+        total_duration = int(get_video_duration(video_path))
         start_time = 0
         segment_number = 1
         segment_duration = 600
@@ -142,7 +186,7 @@ def convert_video_to_audio(video_path=None):
             start_time += segment_duration
             segment_number += 1
 
-        video_clip.close()
+        # video_clip.close()
 
     except Exception as e:
         print(e)
@@ -218,6 +262,18 @@ def extract_subclip(
         t1, t2 = [int(1000 * t) for t in [start_time, end_time]]
         output_path = "%sSUB%d_%d%s" % (name, t1, t2, ext)
 
+    # Ensure input path exists
+    if not os.path.exists(input_path):
+        print(f"ERROR: Input file does not exist: {input_path}")
+        return False
+
+    # Ensure output directory exists
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"Created output directory: {output_dir}")
+
+    # Construct the ffmpeg command
     cmd = [
         FFMPEG_BINARY,
         "-ss",
@@ -240,7 +296,6 @@ def extract_subclip(
         ffmpeg_escape_filename(output_path),
     ]
     if audio_only == True:
-
         cmd = [
             FFMPEG_BINARY,
             "-ss",
@@ -255,7 +310,16 @@ def extract_subclip(
             ffmpeg_escape_filename(output_path),
         ]
 
-    subprocess_call(cmd, logger=logger)
+    # Print the command for debugging
+    print(f"Running ffmpeg command: {' '.join(cmd)}")
+    
+    try:
+        result = subprocess_call(cmd, logger=logger)
+        print(f"ffmpeg result: {result}")
+        return True
+    except Exception as e:
+        print(f"Error in ffmpeg command: {str(e)}")
+        return False
 
 
 def create_segments(input_video, segments):
@@ -358,6 +422,8 @@ def upload_folder_to_s3(local_folder, video_folder):
 
     return uploaded_files
 
+
+
 def generate_videos(video_folder, num_clips=5, max_length=60):
 
     client = OpenAI(
@@ -378,12 +444,6 @@ def generate_videos(video_folder, num_clips=5, max_length=60):
 
     lines = loop.run_until_complete(transcribe_audio_files_async(clips))
 
-    # lines = []
-    # for idx, clip_file in enumerate(clips):
-    #     print(clip_file)
-    #     output = transcribe_audio_file(client, input_path=clip_file, file_idx=idx)
-    #     lines += output
-    #     print(f"FINISHED TRANSCRIBING CLIP {idx}")
     
     print("FINISHED TRANSCRIPTION")
     
@@ -397,6 +457,7 @@ def generate_videos(video_folder, num_clips=5, max_length=60):
     segments = select_segments(client, transcript, num_clips, max_length)
 
     print("OPEN AI FINISHED SELECTING CLIPS")
+    print("SEGMENTS:", segments)
 
     create_segments(local_video_path, segments)
 
@@ -471,33 +532,47 @@ def list_videos_endpoint(video_folder):
             return jsonify({"error": "Not authenticated"}), 401
 
         videos = list_output_videos(video_folder)
+        print(videos)
         return jsonify({"videos": videos}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # Add these new routes
 @app.route('/auth/google')
+@cross_origin(supports_credentials=True)
 def google_auth():
+    session.permanent = True
+    state = os.urandom(16).hex()
+    session['oauth_state'] = state
+    
+    # Use the backend URL for callback
+    callback_url = f'{BACKEND_URL}/auth/google/callback'
+    
     return oauth.google.authorize_redirect(
-        redirect_uri='http://localhost:5001/auth/google/callback'
+        redirect_uri=callback_url,
+        state=state
     )
 
 @app.route('/auth/google/callback')
+@cross_origin(supports_credentials=True)
 def google_auth_callback():
     try:
         token = oauth.google.authorize_access_token()
         userinfo = token.get('userinfo')
         if userinfo:
-            session.permanent = True  # Make the session permanent
+            session.permanent = True
             session['user'] = userinfo
-            print("Setting user in session:", userinfo)
-            return redirect('http://localhost:3000/upload')
+            session.modified = True  # Ensure session is saved
+            
+            # Redirect to the frontend URL
+            return redirect(f"{FRONTEND_URL.split(',')[0]}/upload")
         return 'Failed to get user info', 400
     except Exception as e:
         print(f"Error in callback: {str(e)}")
         return str(e), 400
 
 @app.route('/auth/user')
+@cross_origin(supports_credentials=True)
 def get_user():
     print("Current session:", dict(session))
     user = session.get('user')
@@ -520,19 +595,35 @@ def get_user_videos():
         user_email = re.sub(r'[^a-zA-Z0-9]', '_', user['email']).lower()
         
         # List all objects with user's email prefix
-        response = s3_client.list_objects_v2(
+        response_user = s3_client.list_objects_v2(
             Bucket=S3_BUCKET,
             Prefix=f"{user_email}/"
         )
+
+        # List all objects with sample prefix
+        response_sample = s3_client.list_objects_v2(
+            Bucket=S3_BUCKET,
+            Prefix=f"sample/"
+        )
         
         # Get unique folder names (excluding input/output subfolders)
-        folders = set()
-        for obj in response.get('Contents', []):
+        user_folders = set()
+        for obj in response_user.get('Contents', []):
             path_parts = obj['Key'].split('/')
             if len(path_parts) > 2:  # user_email/folder_name/...
-                folders.add(path_parts[1])
+                user_folders.add(path_parts[1])
         
-        return jsonify({"folders": list(folders)}), 200
+        sample_folders = set()
+        for obj in response_sample.get('Contents', []):
+            path_parts = obj['Key'].split('/')
+            if len(path_parts) > 2:  # sample/folder_name/...
+                sample_folders.add(path_parts[1])
+        
+        # Return both user folders and sample folders
+        return jsonify({
+            "user_folders": list(user_folders),
+            "sample_folders": list(sample_folders)
+        }), 200
     except Exception as e:
         print(f"Error fetching user videos: {e}")
         return jsonify({"error": str(e)}), 500
@@ -565,5 +656,49 @@ def delete_video(video_folder):
         print(f"Error deleting video: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.before_request
+def debug_session():
+    print("\n=== Request Info ===")
+    print(f"Request URL: {request.url}")
+    print(f"Request Headers: {dict(request.headers)}")
+    print(f"Current Session: {dict(session)}")
+    print(f"Cookies: {request.cookies}")
+
+@app.after_request
+def after_request(response):
+    print("\n=== Response Info ===")
+    print(f"Response Headers: {dict(response.headers)}")
+    print(f"Set-Cookie Headers: {response.headers.getlist('Set-Cookie')}")
+    print(f"Final Session: {dict(session)}")
+    
+    # Set CORS headers
+    origin = request.headers.get('Origin')
+    if origin and origin in [url.strip() for url in FRONTEND_URL.split(',')]:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+        response.headers['Access-Control-Expose-Headers'] = 'Set-Cookie, Authorization'
+    
+    return response
+
+# Add OPTIONS handler for preflight requests
+@app.route('/auth/user', methods=['OPTIONS'])
+def auth_user_options():
+    response = make_response()
+    origin = request.headers.get('Origin')
+    if origin and origin in [url.strip() for url in FRONTEND_URL.split(',')]:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+        response.headers['Access-Control-Expose-Headers'] = 'Set-Cookie, Authorization'
+    return response
+
+
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5001)
+    app.run(
+        debug=True, 
+        host="0.0.0.0", 
+        port=8000,
+    )

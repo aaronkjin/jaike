@@ -30,7 +30,7 @@ const LandingPage = () => {
   const bgColor = useColorModeValue('gray.50', 'gray.700');
   const buttonBgColor = useColorModeValue('blackAlpha.800', 'gray.700');
   const textColor = useColorModeValue('gray.600', 'gray.300');
-  
+
   const [currentText, setCurrentText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showSubtitle, setShowSubtitle] = useState(false);
@@ -66,21 +66,21 @@ const LandingPage = () => {
   }, [showSubtitle, subtitleIndex]);
 
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:5001/auth/google';
+    window.location.href = `/auth/google`;
   };
 
   return (
     <Box position="relative" minH="100vh" w="100%" bg={bgColor}>
-      <Container maxW="container.xl" h="100vh" display="flex" alignItems="center">        
+      <Container maxW="container.xl" h="100vh" display="flex" alignItems="center">
         <VStack spacing={8} w="full" align="center">
           <Fade in={true} transition={{ enter: { duration: 0.5 } }}>
             <Box textAlign="center" mb={10}>
               <ScaleFade initialScale={0.9} in={true}>
-                <Heading 
-                  as="h1" 
-                  size="2xl" 
-                  mb={4} 
-                  fontWeight="semibold" 
+                <Heading
+                  as="h1"
+                  size="2xl"
+                  mb={4}
+                  fontWeight="semibold"
                   letterSpacing="tighter"
                   sx={{
                     '&::after': {
@@ -124,7 +124,7 @@ const LandingPage = () => {
           </Fade>
         </VStack>
       </Container>
-      
+
       <IconButton
         aria-label="Toggle color mode"
         icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}

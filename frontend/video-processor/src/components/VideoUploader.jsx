@@ -135,25 +135,25 @@ const TextCarousel = () => {
 const LoadingVideo = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [progressValue, setProgressValue] = useState(0);
-  
+
   useEffect(() => {
     const timer = setInterval(() => {
       setElapsedTime(prev => prev + 1);
     }, 1000);
-    
+
     return () => clearInterval(timer);
   }, []);
-  
+
   // Visual indicator (not actually progress)
   useEffect(() => {
     const maxTime = 600;
     const newProgress = Math.min(90, (elapsedTime / maxTime) * 100);
     setProgressValue(newProgress);
   }, [elapsedTime]);
-  
+
   const minutes = Math.floor(elapsedTime / 60);
   const seconds = elapsedTime % 60;
-  
+
   return (
     <Box mt={6} width="100%">
       <AspectRatio ratio={16 / 9} maxW="1000px" mx="auto">
@@ -175,10 +175,10 @@ const LoadingVideo = () => {
           This may take 5-10 minutes depending on the lecture video length.
         </Text>
         <Box w="80%" maxW="600px">
-          <Progress 
-            value={progressValue} 
-            size="sm" 
-            colorScheme="gray" 
+          <Progress
+            value={progressValue}
+            size="sm"
+            colorScheme="gray"
             borderRadius="full"
             isAnimated
           />
@@ -195,7 +195,7 @@ const VideoUploader = () => {
   const [previousVideos, setPreviousVideos] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentView, setCurrentView] = useState('home');
-  
+
   const { colorMode, toggleColorMode } = useColorMode();
   const mainBgColor = useColorModeValue('gray.50', 'gray.700');
   const sidebarBgColor = useColorModeValue('gray.100', 'gray.800');
@@ -222,10 +222,10 @@ const VideoUploader = () => {
 
   // AWS S3 configuration
   const s3Config = {
-    bucketName: 'videolecturefiles',
-    region: 'us-west-1',
-    accessKeyId: 'AKIA2NK3YJBY5WPPYDMV',
-    secretAccessKey: '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',
+    bucketName: process.env.REACT_APP_S3_BUCKET,
+    region: process.env.REACT_APP_S3_REGION,
+    accessKeyId: process.env.REACT_APP_AWS_ACCESS_KEY,
+    secretAccessKey: process.env.REACT_APP_AWS_SECRET_KEY,
     useAcceleration: true
   };
 
@@ -235,6 +235,8 @@ const VideoUploader = () => {
 
   const uploadToS3 = async () => {
     if (!file) return null;
+
+    console.log(s3Config);
 
     const fileDate = new Date(file.lastModified);
     const timestamp = fileDate.getTime();
@@ -280,7 +282,7 @@ const VideoUploader = () => {
 
       // Check if processed videos already exist for this folder
       try {
-        const response = await axios.get(`http://localhost:5001/list_videos/${folderName}`, {
+        const response = await axios.get(`/list_videos/${folderName}`, {
           withCredentials: true
         });
         if (response.data.videos && response.data.videos.length > 0) {
@@ -294,7 +296,7 @@ const VideoUploader = () => {
       }
 
       toast('Processing video...');
-      await axios.post('http://localhost:5001/generate_videos', {
+      await axios.post(`/generate_videos`, {
         video_folder: folderName,
         num_clips: numClips,
         length_of_clips: lengthOfClips
@@ -316,7 +318,7 @@ const VideoUploader = () => {
   useEffect(() => {
     const fetchPreviousVideos = async () => {
       try {
-        const response = await axios.get('http://localhost:5001/user_videos', {
+        const response = await axios.get(`/user_videos`, {
           withCredentials: true
         });
         setPreviousVideos(response.data.folders);
@@ -332,7 +334,7 @@ const VideoUploader = () => {
     if (folderName) {
       setProcessedFolder(folderName);
       setCurrentView('player'); // Switch to player view when selecting a video
-      
+
       // Close sidebar on mobile after selecting a video
       if (window.innerWidth < 768) {
         setSidebarOpen(false);
@@ -350,21 +352,21 @@ const VideoUploader = () => {
           color={headingColor}
           letterSpacing="tight"
           textAlign="center"
-          mb={-4} 
+          mb={-4}
         >
           Jaike
         </Heading>
-        
+
         {uploading ? (
           <LoadingVideo />
         ) : (
-          <Box 
-            bg={mainBgColor} 
-            p={8} 
-            borderRadius="xl" 
-            boxShadow="sm" 
+          <Box
+            bg={mainBgColor}
+            p={8}
+            borderRadius="xl"
+            boxShadow="sm"
             w="full"
-            mt={-4} 
+            mt={-4}
           >
             <TextCarousel />
             <form onSubmit={handleSubmit}>
@@ -406,7 +408,7 @@ const VideoUploader = () => {
                     _hover={{ bg: 'rgba(0,0,0,0.05)' }}
                   />
                 </Flex>
-                
+
                 <Flex w="full">
                   <Button
                     type="submit"
@@ -497,25 +499,25 @@ const VideoUploader = () => {
 
   return (
     <Box position="relative" minH="100vh" bg={mainBgColor}>
-      <Sidebar 
+      <Sidebar
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
-        onSelectVideo={handleVideoSelect} 
+        onSelectVideo={handleVideoSelect}
         onHomeClick={goToHome}
       />
-      
+
       <Box
         ml={sidebarOpen ? "280px" : "0"}
         transition="margin-left 0.25s ease-in-out"
         minH="100vh"
         position="relative"
       >
-        <Flex 
-          position="absolute" 
-          top="4" 
-          left="4" 
-          right="4" 
-          justify="space-between" 
+        <Flex
+          position="absolute"
+          top="4"
+          left="4"
+          right="4"
+          justify="space-between"
           align="center"
           zIndex="900"
         >
@@ -532,7 +534,7 @@ const VideoUploader = () => {
               />
             )}
           </Box>
-          
+
           <Flex align="center">
             {/* Dark Mode Toggle */}
             <IconButton
@@ -545,7 +547,7 @@ const VideoUploader = () => {
               mr={2}
               _hover={{ bg: 'rgba(0,0,0,0.05)' }}
             />
-            
+
             <Menu>
               <MenuButton
                 as={Button}
@@ -575,20 +577,20 @@ const VideoUploader = () => {
           </Flex>
         </Flex>
 
-        <Container 
-          maxW="container.xl" 
-          py="16" 
+        <Container
+          maxW="container.xl"
+          py="16"
           px={{ base: 4, md: 8 }}
         >
           <Toaster position="top-center" />
           {currentView === 'home' ? renderHomeView() : renderPlayerView()}
         </Container>
 
-        <Flex 
-          justify="center" 
-          position="absolute" 
-          bottom="4" 
-          left="0" 
+        <Flex
+          justify="center"
+          position="absolute"
+          bottom="4"
+          left="0"
           right="0"
         >
           <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')}>

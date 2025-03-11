@@ -15,8 +15,12 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await axios.get('http://localhost:5001/auth/user', {
-        withCredentials: true
+      const response = await axios.get(`/auth/user`, {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
       });
       setUser(response.data);
     } catch (error) {
@@ -28,11 +32,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await axios.get('http://localhost:5001/auth/logout', {
-        withCredentials: true
+      await axios.get(`/auth/logout`, {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
       });
       setUser(null);
-      navigate('/');  // Redirect to homepage after successful logout
+      navigate('/');
     } catch (error) {
       console.error('Logout failed:', error);
     }
