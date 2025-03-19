@@ -16,6 +16,8 @@ An AI-powered application that generates short-form content based on lectures. B
 docker compose up --build
 ```
 
+2. Or, check out our hosted web app [here](https://jaike-clkg.onrender.com/)
+
 ## Walkthrough
 
 ### Landing Page
