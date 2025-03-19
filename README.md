@@ -2,12 +2,6 @@
 
 An AI-powered application that generates short-form content based on lectures. Built for students, by students. A CS 194W project.
 
-## Important Links
-
-- [Team Milestones](https://github.com/StanfordCS194/win25-Team34/milestones)
-- [Course Syllabus (accurate assignment deadlines and schedule)](https://docs.google.com/spreadsheets/d/1Y5Lcy-f3GsL_aUVHTDTYkmbaJQqK7sEhrNU9xM57UpQ/edit?usp=sharing)
-- [Wiki Link](https://github.com/StanfordCS194/win25-Team34/wiki)
-
 ## Getting Started
 
 1. Simply, get our Docker container up and running to start
@@ -38,10 +32,10 @@ docker compose up --build
 
 ## Developers
 
+[Aaron Jin](https://github.com/aaronkjin)
+
 [Andrew Chung](https://github.com/awchung04)
 
 [Ryan Cheng](https://github.com/ryachen01)
-
-[Aaron Jin](https://github.com/aaronkjin)
 
 [Ryan Suh](https://github.com/ryanjsuh)
