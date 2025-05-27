@@ -30,6 +30,10 @@ docker compose up --build
 
 <img width="1000" alt="Image" src="https://github.com/user-attachments/assets/93c908e1-a51d-4240-836b-0d569066fed7" />
 
+### Demo
+
+Video demo found [here](https://youtu.be/vPa8seJ3Y64).
+
 ## Developers
 
 [Aaron Jin](https://github.com/aaronkjin)
